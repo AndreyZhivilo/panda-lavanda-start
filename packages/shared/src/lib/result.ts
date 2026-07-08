@@ -1,8 +1,8 @@
 import { left, right } from '@sweet-monads/either'
 import type { Either } from '@sweet-monads/either'
 
-import { AppError } from '@domain/errors'
-import type { ICrashReporterService } from '@domain/ports/crash-reporter.port'
+import { AppError } from '@panda-lavanda/domain'
+import type { ICrashReporterService } from '@panda-lavanda/domain'
 
 type LeftValue = Error
 

@@ -1,4 +1,4 @@
-import type { ICrashReporterService } from '@domain/ports/crash-reporter.port'
+import type { ICrashReporterService } from '@panda-lavanda/domain'
 
 export class CrashReporterService implements ICrashReporterService {
   report(error: unknown): void {
