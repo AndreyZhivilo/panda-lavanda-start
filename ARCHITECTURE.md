@@ -27,16 +27,24 @@ panda-lavanda-start/
     │       ├── api/                 # HTTP adapters (CrashReporterService, …)
     │       └── storage/             # localStorage / DB adapters
     │
-    └── shared/                  # @panda-lavanda/shared — cross-cutting utilities
-        └── src/
-            ├── lib/                 # tryCatch / tryCatchSync (@sweet-monads/either)
-            ├── types/
-            ├── config/
-            └── ui/
+    ├── shared/                  # @panda-lavanda/shared — cross-cutting utilities
+    │   └── src/
+    │       ├── lib/                 # tryCatch / tryCatchSync (@sweet-monads/either)
+    │       ├── types/
+    │       ├── config/
+    │       └── ui/
+    │
+    └── db/                     # @panda-lavanda/db — Drizzle ORM schema & client
+        ├── src/
+        │   ├── schema/              # pg tables/enums (products, exemplars, …)
+        │   └── client.ts            # createDb(connectionString) → Drizzle instance
+        └── drizzle.config.ts        # drizzle-kit config (migrations, studio)
 ```
 
-### Future packages
-- `@panda-lavanda/db` — Drizzle ORM schema, migrations, seed data
+> **Note on `db`:** unlike the pure-TS packages, this one is Node-only
+> (PostgreSQL driver). It owns the persistence schema and exposes a typed
+> `Db` instance; concrete repository implementations live in
+> `infrastructure` and consume it via the `@panda-lavanda/domain` ports.
 
 ## Dependency rule (Clean Architecture)
 
@@ -51,7 +59,8 @@ shared ◄── domain ◄── application ◄── web / telegram-bot
 | `shared`         | itself (pure TS utils)               | domain, frameworks     |
 | `domain`         | `shared`                            | React, external libs   |
 | `application`    | `domain`, `shared`                  | React, `infrastructure` |
-| `infrastructure` | `domain` (ports), `shared`           | React, `app` code      |
+| `infrastructure` | `domain` (ports), `shared`, `db`     | React, `app` code      |
+| `db`             | `drizzle-orm`, `shared`             | domain, app code       |
 | `web`            | all packages + own `presentation/`   | —                       |
 | `telegram-bot`    | `application`, `infrastructure`, etc. | —                       |
 
