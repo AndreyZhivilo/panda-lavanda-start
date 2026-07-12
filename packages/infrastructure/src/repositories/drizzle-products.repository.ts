@@ -1,6 +1,7 @@
 import { and, eq, inArray } from 'drizzle-orm'
 
 import type {
+  CreateProductData,
   IProduct,
   IProductFilters,
   IProductsRepository,
@@ -31,6 +32,36 @@ type JoinedRow = {
  */
 export class DrizzleProductsRepository implements IProductsRepository {
   constructor(private readonly db: Db) {}
+
+  async create(data: CreateProductData): Promise<IProduct> {
+    const id = await this.db.transaction(async (tx) => {
+      const [product] = await tx
+        .insert(productsTable)
+        .values({
+          name: data.name,
+          description: data.description,
+          categoryId: data.category,
+          images: data.images,
+        })
+        .returning({ id: productsTable.id })
+
+      if (data.exemplars.length > 0) {
+        await tx.insert(exemplarsTable).values(
+          data.exemplars.map((exemplar) => ({
+            productId: product.id,
+            price: exemplar.price,
+            inStock: exemplar.inStock,
+            size: exemplar.size,
+          })),
+        )
+      }
+
+      return product.id
+    })
+
+    // The row was just inserted, so it is guaranteed to exist.
+    return (await this.getById(id))!
+  }
 
   async getMany(filters: IProductFilters): Promise<IProduct[]> {
     const page = filters.page && filters.page > 0 ? filters.page : 1
@@ -95,21 +126,22 @@ export class DrizzleProductsRepository implements IProductsRepository {
    * Groups joined rows back into products, each carrying its exemplars.
    * A product with no exemplars still appears (LEFT JOIN yields a null row).
    */
-  private groupProducts(rows: ProductWithExemplars[]): IProduct[] {
+  private groupProducts(rows: JoinedRow[]): IProduct[] {
     const byId = new Map<string, IProduct>()
 
     for (const row of rows) {
-      let product = byId.get(row.id)
+      const p = row.products
+      let product = byId.get(p.id)
       if (!product) {
         product = {
-          id: row.id,
-          name: row.name,
-          description: row.description,
-          category: row.categoryId,
-          images: row.images,
+          id: p.id,
+          name: p.name,
+          description: p.description,
+          category: p.categoryId,
+          images: p.images,
           exemplars: [],
         }
-        byId.set(row.id, product)
+        byId.set(p.id, product)
       }
 
       if (row.exemplars) {
