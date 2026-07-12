@@ -11,3 +11,7 @@ dist-ssr
 .vinxi
 __unconfig*
 todos.json
+
+# Uploaded files (local file storage) — keep the folder, ignore its contents.
+apps/web/public/uploads/*
+!apps/web/public/uploads/.gitkeep
