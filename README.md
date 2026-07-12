@@ -9,6 +9,11 @@ npm install
 npm run dev
 ```
 
+> 🐳 **Хотите поднять базу данных в Docker?**
+> См. подробную инструкцию в [`DOCKER.md`](./DOCKER.md) — PostgreSQL в контейнере
+> с автоматическим применением Drizzle-миграций, плюс быстрый старт и решение
+> типичных проблем.
+
 # Building For Production
 
 To build this application for production:

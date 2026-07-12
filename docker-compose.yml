@@ -1,0 +1,51 @@
+# Локальная среда разработки Panda Lavanda.
+#
+# Контейнеризуем ТОЛЬКО PostgreSQL. Веб-приложение (apps/web) и telegram-бот
+# запускаются на хосте через `npm run dev` и подключаются к БД на localhost:5432.
+#
+# Подробнее: DOCKER.md
+
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: panda-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-panda}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-panda}
+      POSTGRES_DB: ${POSTGRES_DB:-panda}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # One-shot сервис: применяет Drizzle-миграции один раз при старте,
+  # затем завершается. Запускается только после того, как БД прошла healthcheck.
+  migrate:
+    image: node:22-alpine
+    container_name: panda-migrate
+    working_dir: /app
+    environment:
+      # Внутри docker-сети БД доступна по имени сервиса "db".
+      DATABASE_URL: postgresql://${POSTGRES_USER:-panda}:${POSTGRES_PASSWORD:-panda}@db:5432/${POSTGRES_DB:-panda}
+    volumes:
+      # Монтируем репозиторий целиком, чтобы применялись свежие SQL-миграции,
+      # сгенерированные на хосте (`npm run generate -w @panda-lavanda/db`).
+      - ./:/app
+      # Изолируем node_modules контейнера (Linux-бинарники) от хоста (Windows)
+      # и кэшируем установку между запусками.
+      - migrate_node_modules:/app/node_modules
+    command: sh -c "npm install && npm run migrate -w @panda-lavanda/db"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+volumes:
+  pgdata:
+  migrate_node_modules:

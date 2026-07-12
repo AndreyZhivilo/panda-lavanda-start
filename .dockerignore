@@ -1,0 +1,34 @@
+# Исключаем из Docker-контекста всё, что не нужно контейнерам.
+# Сейчас образы только один (node:22-alpine) подключают репозиторий как volume
+# в сервисе `migrate`, но этот файл пригодится, когда появится Dockerfile для веба.
+
+# Зависимости (ставятся внутри контейнера)
+node_modules
+**/node_modules
+
+# Артефакты сборки
+dist
+dist-ssr
+.output
+.nitro
+.vinxi
+.tanstack
+.wrangler
+__unconfig*
+
+# Git и системный мусор
+.git
+.gitignore
+.DS_Store
+
+# Локальные секреты — никогда не паковать в образ
+.env
+*.local
+
+# Логи и IDE
+*.log
+.vscode
+.idea
+
+# Прочее
+todos.json
