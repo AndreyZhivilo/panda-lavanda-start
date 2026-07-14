@@ -13,7 +13,8 @@
     "build": "tsc --noEmit",
     "generate": "drizzle-kit generate",
     "migrate": "drizzle-kit migrate",
-    "studio": "drizzle-kit studio"
+    "studio": "drizzle-kit studio",
+    "seed": "node --env-file-if-exists=../../.env --import tsx scripts/seed.ts"
   },
   "dependencies": {
     "@panda-lavanda/shared": "*",
@@ -23,6 +24,7 @@
   "devDependencies": {
     "@types/node": "^22.10.2",
     "drizzle-kit": "^0.31.10",
+    "tsx": "^4.19.0",
     "typescript": "^6.0.2"
   }
 }

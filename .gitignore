@@ -12,6 +12,8 @@ dist-ssr
 __unconfig*
 todos.json
 
-# Uploaded files (local file storage) — keep the folder, ignore its contents.
+# Uploaded files (local file storage) — keep the folder, ignore its contents,
+# except for the committed seed images used to fill the dev database.
 apps/web/public/uploads/*
 !apps/web/public/uploads/.gitkeep
+!apps/web/public/uploads/seed/
