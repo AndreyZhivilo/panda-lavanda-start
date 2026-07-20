@@ -1,9 +1,10 @@
-import type { UniqueId, ImageUrl, PriceInRub } from '@panda-lavanda/shared'
 import type {
-  IProduct,
-  IProductFilters,
-  Size,
-} from '../products'
+  ImageUrl,
+  Paginated,
+  PriceInRub,
+  UniqueId,
+} from '@panda-lavanda/shared'
+import type { IProduct, IProductFilters, Size } from '../products'
 
 /** Partial product fields allowed in an update operation. */
 export interface UpdateProductData {
@@ -39,8 +40,8 @@ export interface CreateProductData {
 export interface IProductsRepository {
   /** Creates a new product with its exemplars (atomic) and returns it. */
   create(data: CreateProductData): Promise<IProduct>
-  /** Returns products matching the given filters. */
-  getMany(filters: IProductFilters): Promise<IProduct[]>
+  /** Returns products matching the given filters, with the total match count. */
+  getMany(filters: IProductFilters): Promise<Paginated<IProduct>>
   /** Returns a single product by id, or `null` if not found. */
   getById(id: UniqueId): Promise<IProduct | null>
   /** Permanently deletes a product by id (cascades to exemplars). */

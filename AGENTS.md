@@ -53,8 +53,8 @@ shared ◄── domain ◄── application ◄── web / telegram-bot
 - **`domain`** is pure TS, zero framework deps. No React, no external libs.
 - **Ports** (e.g. `IProductsRepository`) are interfaces defined **in domain**.
   Concrete implementations live in **infrastructure** and are injected at the
-  app's composition root (`apps/web/src/app/providers/`). Nothing else imports
-  `infrastructure` directly.
+  app's composition root (`apps/web/src/app/composition-root/`). Nothing else
+  imports `infrastructure` directly.
 - **`infrastructure`** maps between relational rows (snake_case) and domain
   entities (camelCase). See `drizzle-products.repository.ts` for the pattern:
   LEFT JOIN exemplars, group in JS, return `IProduct`.
@@ -113,8 +113,38 @@ add *new* `domain` imports into `shared`.
 - Path relativity gotcha: in `vite.config.ts` router paths are relative to
   `./src` (so `./app/routes`), but in `tsr.config.json` they're relative to
   the app root (so `./src/app/routes`).
+- **Server functions live in `src/app/server-functions/<feature>/`.** Each
+  `createServerFn` wrapper is in a `<feature>.functions.ts` file (TanStack
+  Start convention — `.functions.ts` files are safe to import statically from
+  routes/components; the compiler replaces the call with an RPC fetch in the
+  client bundle). Route files only import these wrappers and pass arguments —
+  they never call use cases or the composition root directly.
+- **File-suffix conventions (TanStack Start import-protection):**
+  - `.functions.ts` — `createServerFn` wrappers, isomorphic (importable from
+    client and server).
+  - `.server.ts` — server-only modules (env, server-only helpers). The
+    `.server.*` suffix makes TanStack Start reject any import of this file
+    from the client bundle; secrets stay server-side automatically.
+  - `.client.ts` — client-only code.
+- **Composition root in `src/app/composition-root/`.** The only place that
+  instantiates concrete infrastructure (`DrizzleProductsRepository`, `createDb`,
+  etc.). Imported only from `.server.ts` files or inside `.functions.ts`
+  handlers — never from routes/components directly.
 
 ## Environment
 
-- `DATABASE_URL` — PostgreSQL connection string, read by `createDb()` and
-  Drizzle Kit (`packages/db/drizzle.config.ts`). Define in `.env` (gitignored).
+- **Centralized access:** all reads of environment variables go through
+  `import { env } from '#/shared/lib/env.server'`. The `env.server.ts` module
+  runs the entire `process.env` through a zod schema at module scope, so a
+  missing/invalid variable fails the server at startup with a clear error
+  rather than mid-request. **Never** read `process.env.X` directly in app
+  code (`vite.config.ts` and Vite-specific entry code are the only exceptions).
+  Add new variables to the schema in `env.server.ts` — once declared, they're
+  typed on `env` and validated at startup.
+- **Two `.env` files (both gitignored):** the web app loads `.env` from
+  `apps/web/` (Vite/TanStack `loadEnvPlugin` reads `config.root`), while
+  drizzle-kit and the seed script load the root-repo `.env` (Node native
+  `--env-file-if-exists=../../.env`). `cp .env.example <path>` for each.
+- `DATABASE_URL` — PostgreSQL connection string, read by `createDb()` (via
+  `env.DATABASE_URL`) and Drizzle Kit (`packages/db/drizzle.config.ts`, which
+  uses its own `process.env` loader).

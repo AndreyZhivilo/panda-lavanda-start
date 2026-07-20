@@ -65,7 +65,7 @@ shared ◄── domain ◄── application ◄── web / telegram-bot
 | `telegram-bot`    | `application`, `infrastructure`, etc. | —                       |
 
 The **only place** that wires concrete infrastructure is the app's composition
-root (`web/src/app/providers/`). No other layer imports `infrastructure`
+root (`web/src/app/composition-root/`). No other layer imports `infrastructure`
 directly.
 
 ## Internal packages (no build step)

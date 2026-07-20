@@ -5,6 +5,7 @@ import {
   pgEnum,
   pgTable,
   text,
+  timestamp,
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core'
@@ -26,6 +27,9 @@ export const products = pgTable('products', {
   description: text('description').notNull(),
   categoryId: uuid('category_id').notNull(),
   images: jsonb('images').$type<string[]>().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
 })
 
 /**

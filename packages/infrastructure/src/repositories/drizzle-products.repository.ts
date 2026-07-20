@@ -1,34 +1,57 @@
-import { and, eq, inArray } from 'drizzle-orm'
+import { and, count, desc, eq, inArray, sql, type SQL } from 'drizzle-orm'
 
 import type {
   CreateProductData,
   IProduct,
   IProductFilters,
   IProductsRepository,
+  SortOrder,
   UpdateProductData,
 } from '@panda-lavanda/domain'
-import type { UniqueId } from '@panda-lavanda/shared'
+import type { Paginated, UniqueId } from '@panda-lavanda/shared'
 import {
   exemplars as exemplarsTable,
   products as productsTable,
 } from '@panda-lavanda/db'
 import type { Db, ExemplarRow, ProductRow } from '@panda-lavanda/db'
 
-/** Products per page when `filters.page` is provided. */
-const PAGE_SIZE = 20
+/** Default page size when `filters.pageSize` is omitted. */
+const DEFAULT_PAGE_SIZE = 20
 
-/** Shape returned by `select().from(products).leftJoin(exemplars)`. */
-type JoinedRow = {
-  products: ProductRow
-  exemplars: ExemplarRow | null
+/** Upper bound for a single page; protects against huge page sizes from the client. */
+const MAX_PAGE_SIZE = 100
+
+/**
+ * Row shape used by the products-only `select(...)` in {@link getMany} /
+ * {@link getById}. `category` is the camelCase rename of `products.category_id`,
+ * so it's its own type rather than the raw `ProductRow`.
+ */
+type ProductSelectRow = {
+  id: ProductRow['id']
+  name: ProductRow['name']
+  description: ProductRow['description']
+  category: ProductRow['categoryId']
+  images: ProductRow['images']
+  createdAt: ProductRow['createdAt']
 }
+
+/**
+ * Correlated subquery: `true` if the product has at least one exemplar in
+ * stock. Used in ORDER BY to push out-of-stock products to the end.
+ */
+const IN_STOCK_EXPR = sql<boolean>`exists (
+  select 1 from ${exemplarsTable}
+  where ${exemplarsTable.productId} = ${productsTable.id}
+    and ${exemplarsTable.inStock} = true
+)`
 
 /**
  * Drizzle-backed implementation of {@link IProductsRepository}.
  *
  * Maps between the relational rows (snake_case) and the domain entities
- * (camelCase). Exemplars are loaded via a LEFT JOIN and grouped in JS so a
- * product always carries its full variant list.
+ * (camelCase). Products and their exemplars are loaded in two separate
+ * queries (one `IN`-query per page) rather than a LEFT JOIN, to avoid row
+ * duplication and to keep pagination/sort deterministic.
  */
 export class DrizzleProductsRepository implements IProductsRepository {
   constructor(private readonly db: Db) {}
@@ -63,11 +86,66 @@ export class DrizzleProductsRepository implements IProductsRepository {
     return (await this.getById(id))!
   }
 
-  async getMany(filters: IProductFilters): Promise<IProduct[]> {
+  async getMany(filters: IProductFilters): Promise<Paginated<IProduct>> {
     const page = filters.page && filters.page > 0 ? filters.page : 1
-    const offset = (page - 1) * PAGE_SIZE
+    const requestedSize =
+      filters.pageSize && filters.pageSize > 0 ? filters.pageSize : DEFAULT_PAGE_SIZE
+    const pageSize = Math.min(requestedSize, MAX_PAGE_SIZE)
+    const offset = (page - 1) * pageSize
 
-    const conditions = [
+    const conditions = this.buildConditions(filters)
+
+    // (1) Page of products — no JOIN, deterministic ORDER BY.
+    // We `Promise.all` it with (2) and (3) so the three round-trips overlap.
+    const productRowsPromise = this.db
+      .select({
+        id: productsTable.id,
+        name: productsTable.name,
+        description: productsTable.description,
+        category: productsTable.categoryId,
+        images: productsTable.images,
+        createdAt: productsTable.createdAt,
+      })
+      .from(productsTable)
+      .where(and(...conditions))
+      .orderBy(...this.buildOrderBy(filters.sort))
+      .limit(pageSize)
+      .offset(offset)
+
+    const totalPromise = this.db
+      .select({ count: count() })
+      .from(productsTable)
+      .where(and(...conditions))
+
+    const [productRows, [totalRow]] = await Promise.all([
+      productRowsPromise,
+      totalPromise,
+    ])
+    const total = Number(totalRow?.count ?? 0)
+
+    if (productRows.length === 0) {
+      return { items: [], total }
+    }
+
+    // (2) Exemplars for the page's product ids — one IN-query, not N queries.
+    const productIds = productRows.map((p) => p.id)
+    const exemplarRows = await this.db
+      .select()
+      .from(exemplarsTable)
+      .where(inArray(exemplarsTable.productId, productIds))
+
+    return {
+      items: this.mergeProducts(productRows, exemplarRows),
+      total,
+    }
+  }
+
+  /**
+   * Shared WHERE conditions for product filters. Used by both the items query
+   * and the count query so they always agree on the filtered set.
+   */
+  private buildConditions(filters: IProductFilters) {
+    return [
       filters.categoryId
         ? eq(productsTable.categoryId, filters.categoryId)
         : undefined,
@@ -75,27 +153,48 @@ export class DrizzleProductsRepository implements IProductsRepository {
         ? inArray(productsTable.id, filters.ids)
         : undefined,
     ]
+  }
 
-    const rows: JoinedRow[] = await this.db
-      .select()
-      .from(productsTable)
-      .leftJoin(exemplarsTable, eq(exemplarsTable.productId, productsTable.id))
-      .where(and(...conditions))
-      .limit(PAGE_SIZE)
-      .offset(offset)
-
-    return this.groupProducts(rows)
+  /**
+   * ORDER BY expressions for a product list.
+   *
+   * - If `sort` contains `OUT_OF_STOCK_LAST`, the primary key is the
+   *   `IN_STOCK_EXPR` DESC (in-stock products first).
+   * - The final tie-breaker is always `created_at DESC` (newest first), so
+   *   products with equal stock-status have a stable, meaningful order.
+   * - Without any sort key, the default is still `created_at DESC`.
+   */
+  private buildOrderBy(sort?: SortOrder[]) {
+    const orderBy: SQL[] = []
+    if (sort?.includes('out-of-stock-last')) {
+      orderBy.push(desc(IN_STOCK_EXPR))
+    }
+    orderBy.push(desc(productsTable.createdAt))
+    return orderBy
   }
 
   async getById(id: UniqueId): Promise<IProduct | null> {
-    const rows: JoinedRow[] = await this.db
-      .select()
+    const [productRow] = await this.db
+      .select({
+        id: productsTable.id,
+        name: productsTable.name,
+        description: productsTable.description,
+        category: productsTable.categoryId,
+        images: productsTable.images,
+        createdAt: productsTable.createdAt,
+      })
       .from(productsTable)
-      .leftJoin(exemplarsTable, eq(exemplarsTable.productId, productsTable.id))
       .where(eq(productsTable.id, id))
+      .limit(1)
 
-    const products = this.groupProducts(rows)
-    return products[0] ?? null
+    if (!productRow) return null
+
+    const exemplarRows = await this.db
+      .select()
+      .from(exemplarsTable)
+      .where(eq(exemplarsTable.productId, id))
+
+    return this.mergeProducts([productRow], exemplarRows)[0]
   }
 
   async delete(id: UniqueId): Promise<void> {
@@ -123,37 +222,35 @@ export class DrizzleProductsRepository implements IProductsRepository {
   }
 
   /**
-   * Groups joined rows back into products, each carrying its exemplars.
-   * A product with no exemplars still appears (LEFT JOIN yields a null row).
+   * Builds {@link IProduct}s from already-fetched product rows and exemplar
+   * rows. Exemplars are grouped by `productId` in a Map for O(n) lookup, then
+   * attached to each product **in the order `productRows` arrives in** — this
+   * is what preserves the ORDER BY from the items query (the previous
+   * LEFT-JOIN+groupProducts approach lost that order).
    */
-  private groupProducts(rows: JoinedRow[]): IProduct[] {
-    const byId = new Map<string, IProduct>()
-
-    for (const row of rows) {
-      const p = row.products
-      let product = byId.get(p.id)
-      if (!product) {
-        product = {
-          id: p.id,
-          name: p.name,
-          description: p.description,
-          category: p.categoryId,
-          images: p.images,
-          exemplars: [],
-        }
-        byId.set(p.id, product)
-      }
-
-      if (row.exemplars) {
-        product.exemplars.push({
-          id: row.exemplars.id,
-          price: row.exemplars.price,
-          inStock: row.exemplars.inStock,
-          size: row.exemplars.size,
-        })
-      }
+  private mergeProducts(
+    productRows: ProductSelectRow[],
+    exemplarRows: ExemplarRow[],
+  ): IProduct[] {
+    const exemplarsByProductId = new Map<string, ExemplarRow[]>()
+    for (const row of exemplarRows) {
+      const list = exemplarsByProductId.get(row.productId)
+      if (list) list.push(row)
+      else exemplarsByProductId.set(row.productId, [row])
     }
 
-    return [...byId.values()]
+    return productRows.map((p) => ({
+      id: p.id,
+      name: p.name,
+      description: p.description,
+      category: p.category,
+      images: p.images,
+      exemplars: (exemplarsByProductId.get(p.id) ?? []).map((e) => ({
+        id: e.id,
+        price: e.price,
+        inStock: e.inStock,
+        size: e.size,
+      })),
+    }))
   }
 }
