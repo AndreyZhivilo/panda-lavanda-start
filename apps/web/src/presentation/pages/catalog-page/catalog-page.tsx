@@ -2,6 +2,8 @@ import type { IProduct } from '@panda-lavanda/domain'
 import { useLoaderData, useRouter } from '@tanstack/react-router'
 
 import { Button } from '#/shared/components/button'
+import { ProductCard } from '#/shared/components/product-card'
+import { useFavorites } from '#/shared/hooks'
 
 import { pageRange, type PageItem } from './page-range'
 
@@ -20,21 +22,6 @@ type CatalogLoaderData =
   | { ok: true; products: IProduct[]; total: number; page: number }
   | { ok: false; message: string }
 
-/** Smallest exemplar price, or `null` when the product has no exemplars. */
-function minPrice(product: IProduct): number | null {
-  if (product.exemplars.length === 0) return null
-  return Math.min(...product.exemplars.map((e) => e.price))
-}
-
-/** A product is in stock if at least one exemplar is in stock. */
-function isInStock(product: IProduct): boolean {
-  return product.exemplars.some((e) => e.inStock)
-}
-
-function formatPrice(price: number): string {
-  return `${price.toLocaleString('ru-RU')} ₽`
-}
-
 /**
  * Minimal catalog prototype with pagination.
  *
@@ -46,6 +33,7 @@ function formatPrice(price: number): string {
 export function CatalogPage() {
   const data = useLoaderData({ from: '/catalog' }) as CatalogLoaderData
   const router = useRouter()
+  const { isFavorite, toggle, isToggling } = useFavorites()
 
   if (!data.ok) {
     return (
@@ -90,56 +78,15 @@ export function CatalogPage() {
       ) : (
         <>
           <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {products.map((product) => {
-              const price = minPrice(product)
-              const inStock = isInStock(product)
-              const image = product.images[0]
-
-              return (
-                <li
-                  key={product.id}
-                  className="flex flex-col overflow-hidden rounded-lg border bg-background"
-                >
-                  <div className="aspect-[4/3] bg-muted">
-                    {image ? (
-                      <img
-                        src={image}
-                        alt={product.name}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : null}
-                  </div>
-
-                  <div className="flex flex-1 flex-col gap-2 p-4">
-                    <h2 className="font-medium leading-snug">{product.name}</h2>
-
-                    <div className="mt-auto flex items-center justify-between">
-                      {price !== null ? (
-                        <span className="font-semibold">
-                          от {formatPrice(price)}
-                        </span>
-                      ) : (
-                        <span className="text-sm text-muted-foreground">
-                          цена не задана
-                        </span>
-                      )}
-
-                      <span
-                        className={
-                          inStock
-                            ? 'text-xs text-muted-foreground'
-                            : 'text-xs font-medium text-destructive'
-                        }
-                      >
-                        {inStock
-                          ? `вариантов: ${product.exemplars.length}`
-                          : 'нет в наличии'}
-                      </span>
-                    </div>
-                  </div>
-                </li>
-              )
-            })}
+            {products.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                isFavorite={isFavorite(product.id)}
+                onToggleFavorite={() => toggle(product.id)}
+                isTogglingFavorite={isToggling}
+              />
+            ))}
           </ul>
 
           {totalPages > 1 && (

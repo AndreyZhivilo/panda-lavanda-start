@@ -6,14 +6,23 @@ import { SortOrder } from '@panda-lavanda/domain'
 import { productsRepository } from '#/app/composition-root'
 
 /**
- * Input shape the catalog route passes into {@link getProducts}.
+ * Input shape callers pass into {@link getProducts}.
  *
- * `page` always arrives as a valid positive integer here: it originates
- * from the route's `validateSearch` zod schema, which already normalizes
- * absent/invalid `?page=` values to 1.
+ * `page` always arrives as a valid positive integer here: the catalog route's
+ * `validateSearch` zod schema normalizes absent/invalid `?page=` values to 1.
+ *
+ * `ids`, when provided, restricts the result to the given product ids — used
+ * by the client-rendered favorites page to load exactly the favorited
+ * products. Omitted by the catalog route.
+ *
+ * `pageSize` overrides the repository default (20) when the caller knows the
+ * expected count — e.g. the favorites page requests one page large enough to
+ * hold every favorited id. The repository still caps it at 100.
  */
 const getProductsInputSchema = z.object({
   page: z.number().int().positive().default(1),
+  ids: z.array(z.string()).optional(),
+  pageSize: z.number().int().positive().optional(),
 })
 
 /**
@@ -37,6 +46,8 @@ export const getProducts = createServerFn({ method: 'GET' })
     // server-side for every page; the user does not control it via URL.
     const result = await new GetProductsUseCase(productsRepository).execute({
       page: data.page,
+      ids: data.ids,
+      pageSize: data.pageSize,
       sort: [SortOrder.OUT_OF_STOCK_LAST],
     })
 

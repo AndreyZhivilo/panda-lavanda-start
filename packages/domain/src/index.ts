@@ -1,5 +1,7 @@
 export * from './errors'
 export * from './products'
+export * from './users'
 export * from './ports/crash-reporter.port'
 export * from './ports/file-storage.port'
 export * from './ports/products-repository.port'
+export * from './ports/user-repository.port'
