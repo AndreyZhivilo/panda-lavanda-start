@@ -11,5 +11,5 @@
  * `createServerFn` handler), never from a client component.
  */
 export { db } from './db'
-export { productsRepository } from './products'
+export { productsRepository, getProductsUseCase } from './products'
 export { fileStorage } from './storage'

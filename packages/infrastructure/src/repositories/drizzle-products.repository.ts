@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray, sql, type SQL } from 'drizzle-orm'
+import { and, count, desc, eq, ilike, inArray, sql, type SQL } from 'drizzle-orm'
 
 import type {
   CreateProductData,
@@ -151,6 +151,9 @@ export class DrizzleProductsRepository implements IProductsRepository {
         : undefined,
       filters.ids?.length
         ? inArray(productsTable.id, filters.ids)
+        : undefined,
+      filters.search?.trim()
+        ? ilike(productsTable.name, `%${filters.search.trim()}%`)
         : undefined,
     ]
   }

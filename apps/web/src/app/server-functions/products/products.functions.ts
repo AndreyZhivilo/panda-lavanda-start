@@ -1,9 +1,8 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 
-import { GetProductsUseCase } from '@panda-lavanda/application'
 import { SortOrder } from '@panda-lavanda/domain'
-import { productsRepository } from '#/app/composition-root'
+import { getProductsUseCase } from '#/app/composition-root'
 
 /**
  * Input shape callers pass into {@link getProducts}.
@@ -18,11 +17,15 @@ import { productsRepository } from '#/app/composition-root'
  * `pageSize` overrides the repository default (20) when the caller knows the
  * expected count — e.g. the favorites page requests one page large enough to
  * hold every favorited id. The repository still caps it at 100.
+ *
+ * `search`, when provided, filters products by name (case-insensitive
+ * substring match). The catalog route passes the `q` URL search param here.
  */
 const getProductsInputSchema = z.object({
   page: z.number().int().positive().default(1),
   ids: z.array(z.string()).optional(),
   pageSize: z.number().int().positive().optional(),
+  search: z.string().optional(),
 })
 
 /**
@@ -44,10 +47,11 @@ export const getProducts = createServerFn({ method: 'GET' })
   .handler(async ({ data }) => {
     // `OUT_OF_STOCK_LAST` is the catalog's default business rule, applied
     // server-side for every page; the user does not control it via URL.
-    const result = await new GetProductsUseCase(productsRepository).execute({
+    const result = await getProductsUseCase.execute({
       page: data.page,
       ids: data.ids,
       pageSize: data.pageSize,
+      search: data.search,
       sort: [SortOrder.OUT_OF_STOCK_LAST],
     })
 

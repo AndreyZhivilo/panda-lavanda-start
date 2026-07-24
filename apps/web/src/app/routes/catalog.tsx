@@ -14,6 +14,9 @@ import { CatalogPage } from '#/presentation/pages/catalog-page'
  * `page` is **optional** — when absent from the URL, the catalog shows page 1
  * without forcing `?page=1` into the URL (see the middleware below, which
  * strips `page` when it equals the default).
+ *
+ * `q` is the free-text search query (filters products by name). It is optional
+ * and stripped from the URL when empty (see middleware below).
  */
 const DEFAULT_PAGE = 1
 
@@ -25,19 +28,20 @@ const catalogSearchSchema = z.object({
     .catch(DEFAULT_PAGE)
     .optional()
     .default(DEFAULT_PAGE),
+  q: z.string().optional(),
 })
 
 export const Route = createFileRoute('/catalog')({
   component: CatalogPage,
   validateSearch: catalogSearchSchema,
-  // Strip `page` from the URL when it equals the default: visiting
-  // `/catalog?page=1` redirects to `/catalog`, while `/catalog?page=2` keeps
-  // the param. `loaderDeps` still receives `page: 1` either way.
+  // Strip defaults from the URL: `?page=1` → `/catalog`, and `?q=` (empty)
+  // → `/catalog`. `loaderDeps` still receives the resolved values either way.
   search: {
-    middlewares: [stripSearchParams({ page: DEFAULT_PAGE })],
+    middlewares: [stripSearchParams({ page: DEFAULT_PAGE, q: '' })],
   },
-  // Pick `page` out of the validated search; TanStack Router re-runs the
-  // loader whenever these deps change.
-  loaderDeps: ({ search }) => ({ page: search.page }),
-  loader: ({ deps }) => getProducts({ data: { page: deps.page } }),
+  // Pick `page` and `q` out of the validated search; TanStack Router re-runs
+  // the loader whenever either dep changes.
+  loaderDeps: ({ search }) => ({ page: search.page, q: search.q }),
+  loader: ({ deps }) =>
+    getProducts({ data: { page: deps.page, search: deps.q } }),
 })

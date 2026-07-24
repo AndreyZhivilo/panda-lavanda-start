@@ -88,6 +88,11 @@ export interface IProductFilters {
   /** Restrict to a specific set of product ids. */
   ids?: UniqueId[]
   /**
+   * Search query: filters products by name (case-insensitive, substring
+   * match). The repository ignores empty/whitespace-only values.
+   */
+  search?: string
+  /**
    * Sort keys to apply, in order of precedence (leftmost = primary).
    * Unknown keys are ignored by the repository.
    */
