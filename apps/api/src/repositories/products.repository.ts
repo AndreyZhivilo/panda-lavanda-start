@@ -1,19 +1,24 @@
 import { and, count, desc, eq, ilike, inArray, sql, type SQL } from 'drizzle-orm'
 
 import type {
+  CreateExemplarData,
   CreateProductData,
+  IExemplar,
   IProduct,
   IProductFilters,
   IProductsRepository,
   SortOrder,
+  UpdateExemplarData,
   UpdateProductData,
 } from '@panda-lavanda/domain'
 import type { Paginated, UniqueId } from '@panda-lavanda/shared'
+
+import type { Db } from '../db/client'
 import {
   exemplars as exemplarsTable,
   products as productsTable,
-} from '@panda-lavanda/db'
-import type { Db, ExemplarRow, ProductRow } from '@panda-lavanda/db'
+} from '../schema/products'
+import type { ExemplarRow, ProductRow } from '../schema/products'
 
 /** Default page size when `filters.pageSize` is omitted. */
 const DEFAULT_PAGE_SIZE = 20
@@ -52,8 +57,12 @@ const IN_STOCK_EXPR = sql<boolean>`exists (
  * (camelCase). Products and their exemplars are loaded in two separate
  * queries (one `IN`-query per page) rather than a LEFT JOIN, to avoid row
  * duplication and to keep pagination/sort deterministic.
+ *
+ * Domain types are imported as `import type` only (no runtime dependency on
+ * `@panda-lavanda/domain`) — the values are plain JSON-serializable objects,
+ * so the repository returns them directly and Fastify serializes the response.
  */
-export class DrizzleProductsRepository implements IProductsRepository {
+export class ProductsRepository implements IProductsRepository {
   constructor(private readonly db: Db) {}
 
   async create(data: CreateProductData): Promise<IProduct> {
@@ -212,16 +221,141 @@ export class DrizzleProductsRepository implements IProductsRepository {
       ...(data.category !== undefined && { categoryId: data.category }),
       ...(data.images !== undefined && { images: data.images }),
     }
+    const hasProductPatch = Object.keys(patch).length > 0
+    const hasExemplars = data.exemplars !== undefined
 
     // Nothing to update — return the current state.
-    if (Object.keys(patch).length === 0) return this.getById(id)
+    if (!hasProductPatch && !hasExemplars) return this.getById(id)
 
-    await this.db
-      .update(productsTable)
-      .set(patch)
-      .where(eq(productsTable.id, id))
+    // Wrap in a transaction so the product UPDATE and the exemplar replacement
+    // (delete + insert) commit together. We also guard existence up front:
+    // otherwise the exemplar INSERT would fail on the FK and surface as a 500
+    // instead of the contract's `null`.
+    const updated = await this.db.transaction(async (tx) => {
+      if (hasProductPatch) {
+        const [row] = await tx
+          .update(productsTable)
+          .set(patch)
+          .where(eq(productsTable.id, id))
+          .returning({ id: productsTable.id })
+        // Return null if the product did not exist; skip the exemplar work.
+        if (!row) return null
+      } else if (hasExemplars) {
+        const [row] = await tx
+          .select({ id: productsTable.id })
+          .from(productsTable)
+          .where(eq(productsTable.id, id))
+          .limit(1)
+        if (!row) return null
+      }
 
+      // Full replacement: delete all existing exemplars, then insert the new
+      // set (empty array is allowed — clears the product's variants).
+      if (hasExemplars) {
+        await tx.delete(exemplarsTable).where(eq(exemplarsTable.productId, id))
+        if (data.exemplars!.length > 0) {
+          await tx.insert(exemplarsTable).values(
+            data.exemplars!.map((exemplar) => ({
+              productId: id,
+              price: exemplar.price,
+              inStock: exemplar.inStock,
+              size: exemplar.size,
+            })),
+          )
+        }
+      }
+
+      return id
+    })
+
+    if (!updated) return null
     return this.getById(id)
+  }
+
+  async getExemplar(
+    productId: UniqueId,
+    exemplarId: UniqueId,
+  ): Promise<IExemplar | null> {
+    const [row] = await this.db
+      .select()
+      .from(exemplarsTable)
+      .where(
+        and(
+          eq(exemplarsTable.id, exemplarId),
+          eq(exemplarsTable.productId, productId),
+        ),
+      )
+      .limit(1)
+    return row ? toExemplar(row) : null
+  }
+
+  async createExemplar(
+    productId: UniqueId,
+    data: CreateExemplarData,
+  ): Promise<IExemplar | null> {
+    // Guard existence: INSERT against a missing product would fail on the FK
+    // and surface as a 500; the contract is `null`.
+    const [product] = await this.db
+      .select({ id: productsTable.id })
+      .from(productsTable)
+      .where(eq(productsTable.id, productId))
+      .limit(1)
+    if (!product) return null
+
+    const [row] = await this.db
+      .insert(exemplarsTable)
+      .values({
+        productId,
+        price: data.price,
+        inStock: data.inStock,
+        size: data.size,
+      })
+      .returning()
+    return toExemplar(row)
+  }
+
+  async updateExemplar(
+    productId: UniqueId,
+    exemplarId: UniqueId,
+    data: UpdateExemplarData,
+  ): Promise<IExemplar | null> {
+    const patch = {
+      ...(data.price !== undefined && { price: data.price }),
+      ...(data.inStock !== undefined && { inStock: data.inStock }),
+      ...(data.size !== undefined && { size: data.size }),
+    }
+
+    // Nothing to update — return the current state (if it exists).
+    if (Object.keys(patch).length === 0) {
+      return this.getExemplar(productId, exemplarId)
+    }
+
+    const [row] = await this.db
+      .update(exemplarsTable)
+      .set(patch)
+      .where(
+        and(
+          eq(exemplarsTable.id, exemplarId),
+          eq(exemplarsTable.productId, productId),
+        ),
+      )
+      .returning()
+    return row ? toExemplar(row) : null
+  }
+
+  async deleteExemplar(
+    productId: UniqueId,
+    exemplarId: UniqueId,
+  ): Promise<void> {
+    // Idempotent: deleting a row that is already gone deletes nothing.
+    await this.db
+      .delete(exemplarsTable)
+      .where(
+        and(
+          eq(exemplarsTable.id, exemplarId),
+          eq(exemplarsTable.productId, productId),
+        ),
+      )
   }
 
   /**
@@ -248,12 +382,21 @@ export class DrizzleProductsRepository implements IProductsRepository {
       description: p.description,
       category: p.category,
       images: p.images,
-      exemplars: (exemplarsByProductId.get(p.id) ?? []).map((e) => ({
-        id: e.id,
-        price: e.price,
-        inStock: e.inStock,
-        size: e.size,
-      })),
+      exemplars: (exemplarsByProductId.get(p.id) ?? []).map(toExemplar),
     }))
+  }
+}
+
+/**
+ * Maps a raw exemplar row to the domain {@link IExemplar} shape.
+ * Used by `mergeProducts` and the single-exemplar repository methods so the
+ * camelCase mapping lives in one place.
+ */
+function toExemplar(row: ExemplarRow): IExemplar {
+  return {
+    id: row.id,
+    price: row.price,
+    inStock: row.inStock,
+    size: row.size,
   }
 }

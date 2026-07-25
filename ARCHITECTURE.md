@@ -9,6 +9,15 @@ packages, with TanStack Start (web) and Telegram Bot as independent apps.
 panda-lavanda-start/
 ├── apps/
 │   ├── web/                     # TanStack Start (React 19 + Tailwind v4)
+│   ├── api/                     # @panda-lavanda/api — Fastify + Drizzle backend
+│   │   ├── src/
+│   │   │   ├── schema/              # pg tables/enums (products, exemplars, …)
+│   │   │   ├── db/client.ts         # createDb(connectionString) → Drizzle instance
+│   │   │   ├── repositories/        # Drizzle-backed repository (implements domain ports)
+│   │   │   ├── routes/              # Fastify REST endpoints
+│   │   │   └── plugins/db.ts        # registers the db connection + repo
+│   │   ├── scripts/seed.ts          # dev-only seed script
+│   │   └── drizzle.config.ts        # drizzle-kit config (migrations, studio)
 │   └── telegram-bot/            # Telegram Bot (placeholder)
 │
 └── packages/
@@ -25,26 +34,24 @@ panda-lavanda-start/
     ├── infrastructure/          # @panda-lavanda/infrastructure — port implementations
     │   └── src/
     │       ├── api/                 # HTTP adapters (CrashReporterService, …)
-    │       └── storage/             # localStorage / DB adapters
+    │       ├── repositories/        # HTTP-backed adapters (HttpProductsRepository)
+    │       └── storage/             # localStorage / file-storage adapters
     │
-    ├── shared/                  # @panda-lavanda/shared — cross-cutting utilities
-    │   └── src/
-    │       ├── lib/                 # tryCatch / tryCatchSync (@sweet-monads/either)
-    │       ├── types/
-    │       ├── config/
-    │       └── ui/
-    │
-    └── db/                     # @panda-lavanda/db — Drizzle ORM schema & client
-        ├── src/
-        │   ├── schema/              # pg tables/enums (products, exemplars, …)
-        │   └── client.ts            # createDb(connectionString) → Drizzle instance
-        └── drizzle.config.ts        # drizzle-kit config (migrations, studio)
+    └── shared/                  # @panda-lavanda/shared — cross-cutting utilities
+        └── src/
+            ├── lib/                 # tryCatch / tryCatchSync (@sweet-monads/either)
+            ├── types/
+            ├── config/
+            └── ui/
 ```
 
-> **Note on `db`:** unlike the pure-TS packages, this one is Node-only
-> (PostgreSQL driver). It owns the persistence schema and exposes a typed
-> `Db` instance; concrete repository implementations live in
-> `infrastructure` and consume it via the `@panda-lavanda/domain` ports.
+> **Note on `apps/api`:** this is the dedicated backend service (Fastify +
+> Drizzle). It owns the persistence schema, the Drizzle client, the migrations
+> and the seed script, and exposes REST endpoints over the domain entities.
+> Repository implementations there use `import type` for the domain port types
+> (no runtime dependency on `@panda-lavanda/domain`). Client apps (`web`,
+> `telegram-bot`) talk to it over HTTP via `HttpProductsRepository` in
+> `infrastructure` — no process imports a database driver.
 
 ## Dependency rule (Clean Architecture)
 
@@ -59,14 +66,14 @@ shared ◄── domain ◄── application ◄── web / telegram-bot
 | `shared`         | itself (pure TS utils)               | domain, frameworks     |
 | `domain`         | `shared`                            | React, external libs   |
 | `application`    | `domain`, `shared`                  | React, `infrastructure` |
-| `infrastructure` | `domain` (ports), `shared`, `db`     | React, `app` code      |
-| `db`             | `drizzle-orm`, `shared`             | domain, app code       |
-| `web`            | all packages + own `presentation/`   | —                       |
+| `infrastructure` | `domain` (ports), `shared`           | React, `app` code, db drivers |
+| `web`            | all packages + own `presentation/`   | db drivers (talks to `api` over HTTP) |
+| `api`            | `domain` (types only), `shared`, `drizzle-orm`, `fastify` | React, `infrastructure`, other apps |
 | `telegram-bot`    | `application`, `infrastructure`, etc. | —                       |
 
-The **only place** that wires concrete infrastructure is the app's composition
-root (`web/src/app/composition-root/`). No other layer imports `infrastructure`
-directly.
+The **only place** that wires concrete infrastructure is each app's composition
+root (`web/src/app/composition-root/`, `api/src/plugins/db.ts`). No other layer
+imports `infrastructure` or a database driver directly.
 
 ## Internal packages (no build step)
 
@@ -127,16 +134,28 @@ export const Route = createFileRoute('/')({ component: HomePage })
 Run from the **repo root**:
 
 ```
-npm run dev:web        # Start TanStack Start dev server
+npm run dev:web        # Start TanStack Start dev server (port 3000)
+npm run dev:api        # Start the Fastify + Drizzle backend (port 4000)
+npm run dev:all        # Start both web and api concurrently
 npm run build:web      # Production build (client + SSR)
 npm run dev:bot        # Start Telegram Bot
+npm run migrate:api    # Apply Drizzle migrations (apps/api)
+npm run generate:api   # Generate a new Drizzle migration from the schema
+npm run seed:api       # Wipe + fill the DB with test garden plants
 ```
+
+The web app and the backend run as **separate processes**. In development, start
+both with `npm run dev:all` (or `dev:web` + `dev:api` in two terminals). The web
+app calls the backend at `BACKEND_URL` (default `http://localhost:4000`).
 
 ## Data-flow example
 
-User opens `/profile` → `web/src/app/routes/profile.tsx` (thin route)
-renders `web/src/presentation/pages/profile-page` → a hook calls
-`@panda-lavanda/application` use case → the use case depends on
-`IProfileRepository` from `@panda-lavanda/domain` (port) → the concrete
-`ProfileApiRepository` in `@panda-lavanda/infrastructure` performs the
-HTTP request → returns a `Profile` entity from `@panda-lavanda/domain`.
+User opens `/catalog` → `web/src/app/routes/catalog.tsx` (thin route) renders
+`web/src/presentation/pages/catalog-page` → a hook calls the `getProducts`
+server function → `GetProductsUseCase` (in `@panda-lavanda/application`) depends
+on `IProductsRepository` from `@panda-lavanda/domain` (port) → the concrete
+`HttpProductsRepository` in `@panda-lavanda/infrastructure` performs the HTTP
+request to `apps/api` → the backend's `ProductsRepository` (Drizzle-backed)
+queries PostgreSQL and returns `IProduct` entities → serialized as JSON over
+HTTP → mapped back to `IProduct` and returned to the use case → folded into
+`Either<Error, Paginated<IProduct>>` by `tryCatch`.

@@ -9,12 +9,21 @@
   "scripts": {
     "dev": "npm run dev --workspace @panda-lavanda/web",
     "dev:web": "npm run dev --workspace @panda-lavanda/web",
+    "dev:api": "npm run dev --workspace @panda-lavanda/api",
+    "dev:all": "concurrently -n web,api -c blue,green \"npm run dev:web\" \"npm run dev:api\"",
     "dev:bot": "npm run dev --workspace @panda-lavanda/telegram-bot",
     "build": "npm run build --workspace @panda-lavanda/web",
     "build:web": "npm run build --workspace @panda-lavanda/web",
     "generate-routes": "npm run generate-routes --workspace @panda-lavanda/web",
     "test": "npm run test --workspace @panda-lavanda/web",
-    "seed": "npm run seed --workspace @panda-lavanda/db --",
-    "seed:db": "npm run seed --workspace @panda-lavanda/db --"
+    "generate:api": "npm run generate -w @panda-lavanda/api",
+    "migrate:api": "npm run migrate -w @panda-lavanda/api",
+    "studio:api": "npm run studio -w @panda-lavanda/api",
+    "seed": "npm run seed --workspace @panda-lavanda/api --",
+    "seed:api": "npm run seed --workspace @panda-lavanda/api --",
+    "seed:db": "npm run seed --workspace @panda-lavanda/api --"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
   }
 }

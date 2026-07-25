@@ -9,16 +9,16 @@ import { CrashReporterService, LocalStorageUserRepository } from '@panda-lavanda
  * Client-only composition root.
  *
  * Imports from the **client subpath** of `@panda-lavanda/infrastructure`
- * (`.../client`), never from its main barrel. The main barrel re-exports the
- * Drizzle repository, which transitively pulls in `@panda-lavanda/db` ->
- * `postgres` (postgres-js) -> Node's `Buffer`; importing it from the browser
- * throws `ReferenceError: Buffer is not defined` and unmounts the React tree.
+ * (`.../client`), never from its main barrel. The main barrel re-exports
+ * `LocalFileStorageService`, which pulls in Node-only modules
+ * (`node:fs/promises`, etc.); importing it from the browser would fail.
  * The `./client` barrel re-exports only the client-safe modules (crash
- * reporter + LocalStorage-backed repositories) and cannot reach the server
- * graph, so this is a structural guarantee - not just a naming convention.
+ * reporter + LocalStorage-backed repositories, and the HTTP products
+ * repository) and cannot reach the server graph, so this is a structural
+ * guarantee - not just a naming convention.
  *
- * The sibling {@link ./index.ts} wires server infrastructure (Drizzle repos,
- * postgres-js, `fs`-backed file storage) and is imported only from server code
+ * The sibling {@link ./index.ts} wires server infrastructure (HTTP repos,
+ * `fs`-backed file storage) and is imported only from server code
  * (`.server.ts` files and `createServerFn` handlers). This file is the only
  * place that instantiates client-side infrastructure.
  *

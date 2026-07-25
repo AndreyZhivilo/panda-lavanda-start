@@ -3,8 +3,8 @@
  * fills them with realistic test data (garden plants).
  *
  * Works directly on the Drizzle tables — it intentionally does NOT go through
- * `DrizzleProductsRepository` (infrastructure), because `db` must not depend
- * on higher layers (see architecture.md).
+ * the HTTP layer or the repository, to keep the seed fast and independent of
+ * the running API server.
  *
  * Product images reference committed photos under
  * `apps/web/public/uploads/seed/` (served at `/uploads/seed/<file>.jpg`).
@@ -12,18 +12,24 @@
  * always exist and render in the UI.
  *
  * Usage (from repo root):
- *   npm run seed                       # 10 products, interactive confirm
- *   npm run seed -- --count=50         # 50 products
- *   npm run seed -- --yes              # skip confirmation (CI)
- *   npm run seed -- -y --count=20
+ *   npm run seed:api -- --yes              # 10 products, no confirmation
+ *   npm run seed:api -- -y --count=50      # 50 products, no confirmation
+ *   npm run seed:api -- --count=30 --yes   # explicit count + skip prompt
+ *   npx tsx scripts/seed.ts                # interactive (run from apps/api/)
  *
- * `DATABASE_URL` is loaded by Node's `--env-file-if-exists` flag set in the
- * npm script (no `dotenv` dependency).
+ * NOTE: `--yes` (or `-y`) is **required** when running via `npm run`, because
+ * npm scripts have no interactive stdin — the confirmation prompt gets an empty
+ * answer, hangs, and the script fails (`unsettled top-level await`) before
+ * inserting anything. Use the bare `tsx scripts/seed.ts` form only when you
+ * have an interactive terminal.
+ *
+ * `DATABASE_URL` is loaded by Node's `--env-file-if-exists=.env` flag set in
+ * the npm script (no `dotenv` dependency). It reads `apps/api/.env`.
  */
 import { sql } from 'drizzle-orm'
 import { createInterface } from 'node:readline/promises'
 
-import { createDb } from '../src/client'
+import { createDb } from '../src/db/client'
 import { exemplars, products } from '../src/schema/products'
 
 /** Default number of products to seed. */
@@ -209,17 +215,19 @@ function parseArgs(argv: string[]): CliArgs {
 
 function printUsage(): void {
   console.log(`
-Usage: npm run seed -- [options]
+Usage: npm run seed:api -- [options]
 
 Wipes products + exemplars and fills them with test garden plants.
 
 Options:
   --count=N   Number of products to insert (default: ${DEFAULT_COUNT})
-  --yes, -y   Skip the interactive confirmation prompt
+  --yes, -y   Skip the interactive confirmation prompt (REQUIRED via npm run)
   --help, -h  Show this help
 
-DATABASE_URL must be set (loaded from ../../.env automatically).
+DATABASE_URL must be set (loaded from apps/api/.env automatically).
 Only runs against development databases (localhost / 127.0.0.1 / ::1 / "panda").
+
+Note: via 'npm run' there is no interactive stdin, so always pass --yes.
 `)
 }
 
@@ -358,7 +366,7 @@ async function main(): Promise<void> {
   const connectionString = process.env.DATABASE_URL
   if (!connectionString) {
     fail(
-      'DATABASE_URL is not set. Create a .env file at the repo root (see .env.example) or export DATABASE_URL in your shell.',
+      'DATABASE_URL is not set. Create apps/api/.env (see apps/api/.env.example) or export DATABASE_URL in your shell.',
     )
   }
 

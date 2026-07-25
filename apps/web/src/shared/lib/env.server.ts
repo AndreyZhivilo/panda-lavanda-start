@@ -37,11 +37,11 @@ import { z } from 'zod'
  */
 const envSchema = z.object({
   /**
-   * PostgreSQL connection string. Required.
-   * Not validated as a URL: postgres connection strings (e.g. with
-   * `postgresql+postgres://` or socket paths) don't always pass `z.string().url()`.
+   * Base URL of the backend API service (`apps/api`, Fastify + Drizzle).
+   * Required. Validated as a URL since it is always an http(s) origin
+   * (e.g. `http://localhost:4000`), unlike a postgres connection string.
    */
-  DATABASE_URL: z.string().min(1),
+  BACKEND_URL: z.string().url(),
 
   /** Application environment. Optional; defaults to 'development'. */
   NODE_ENV: z
@@ -53,7 +53,7 @@ const envSchema = z.object({
 /**
  * Validated environment for the web app.
  *
- * Usage: `env.DATABASE_URL`, `env.NODE_ENV`.
+ * Usage: `env.BACKEND_URL`, `env.NODE_ENV`.
  */
 export const env = envSchema.parse(process.env)
 

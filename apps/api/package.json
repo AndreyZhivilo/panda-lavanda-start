@@ -1,0 +1,33 @@
+{
+  "name": "@panda-lavanda/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "imports": {
+    "#/*": "./src/*"
+  },
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env --import tsx/esm --watch src/server.ts",
+    "start": "node --env-file-if-exists=.env --import tsx/esm src/server.ts",
+    "generate": "drizzle-kit generate",
+    "migrate": "drizzle-kit migrate",
+    "studio": "drizzle-kit studio",
+    "seed": "node --env-file-if-exists=.env --import tsx scripts/seed.ts"
+  },
+  "dependencies": {
+    "@panda-lavanda/domain": "*",
+    "@panda-lavanda/shared": "*",
+    "@fastify/cors": "^10.0.2",
+    "drizzle-orm": "^0.45.2",
+    "fastify": "^5.2.1",
+    "fastify-plugin": "^5.1.0",
+    "postgres": "^3.4.9",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "drizzle-kit": "^0.31.10",
+    "tsx": "^4.19.0",
+    "typescript": "^6.0.2"
+  }
+}

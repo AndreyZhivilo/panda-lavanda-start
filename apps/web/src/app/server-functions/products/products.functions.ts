@@ -40,7 +40,8 @@ const getProductsInputSchema = z.object({
  * As a `.functions.ts` file, this export is safe to import statically from
  * anywhere (routes, components) — TanStack Start's compiler replaces the
  * call with an RPC fetch in the client bundle; only the server keeps the
- * real handler body (and therefore `@panda-lavanda/db` + postgres-js).
+ * real handler body (which calls the backend over HTTP via
+ * `HttpProductsRepository` — no database driver in the web app anymore).
  */
 export const getProducts = createServerFn({ method: 'GET' })
   .validator(getProductsInputSchema)

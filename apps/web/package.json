@@ -15,7 +15,6 @@
   },
   "dependencies": {
     "@panda-lavanda/application": "*",
-    "@panda-lavanda/db": "*",
     "@panda-lavanda/domain": "*",
     "@panda-lavanda/infrastructure": "*",
     "@panda-lavanda/shared": "*",

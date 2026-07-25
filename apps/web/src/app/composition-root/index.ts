@@ -2,14 +2,14 @@
  * Composition root for the web app.
  *
  * The only place that wires concrete infrastructure implementations
- * (`@panda-lavanda/infrastructure`, `@panda-lavanda/db`) to the domain ports.
- * Everything else in the app depends on the port types, never on these
- * concrete classes.
+ * (`@panda-lavanda/infrastructure`) to the domain ports. Everything else in
+ * the app depends on the port types, never on these concrete classes.
  *
- * Importing this module (transitively) pulls in Node-only code (postgres-js),
- * so it must only ever be referenced from server code (e.g. inside a
- * `createServerFn` handler), never from a client component.
+ * The products repository is HTTP-backed (`HttpProductsRepository`), so
+ * importing this module no longer pulls in a database driver. The Node-only
+ * import here is `LocalFileStorageService` (`node:fs/promises`, etc.) in
+ * `storage.ts`, so this module must still only be referenced from server code
+ * (e.g. inside a `createServerFn` handler), never from a client component.
  */
-export { db } from './db'
 export { productsRepository, getProductsUseCase } from './products'
 export { fileStorage } from './storage'

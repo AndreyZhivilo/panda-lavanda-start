@@ -1,8 +1,9 @@
 # Запуск в Docker
 
 В этом проекте в Docker контейнеризована **только база данных PostgreSQL**.
-Веб-приложение (`apps/web`) и telegram-бот (`apps/telegram-bot`) запускаются
-на хосте через `npm run dev` и подключаются к БД на `localhost:5432`.
+Веб-приложение (`apps/web`), API-бэкенд (`apps/api`) и telegram-бот
+(`apps/telegram-bot`) запускаются на хосте через `npm run dev` (или
+`npm run dev:all` для web + api) и подключаются к БД на `localhost:5432`.
 
 Дополнительно есть одноразовый сервис `migrate`, который применяет
 Drizzle-миграции при старте.
@@ -46,15 +47,15 @@ Drizzle-миграции при старте.
 cp .env.example .env
 
 # 2. Установить зависимости и сгенерировать SQL-миграции из схемы Drizzle.
-#    Миграций в packages/db/drizzle по умолчанию нет — их нужно сгенерировать.
+#    Миграций в apps/api/drizzle по умолчанию нет — их нужно сгенерировать.
 npm install
-npm run generate -w @panda-lavanda/db
+npm run generate:api
 
 # 3. Поднять БД и применить миграции.
 docker compose up -d
 
-# 4. Запустить веб-приложение на хосте.
-npm run dev
+# 4. Запустить веб-приложение и API-бэкенд на хосте.
+npm run dev:all
 ```
 
 После четвёртого шага приложение доступно на **http://localhost:3000**.
@@ -124,16 +125,16 @@ npm run dev
 
 ## Работа с миграциями
 
-Миграции — это файлы SQL в каталоге `packages/db/drizzle/`.
+Миграции — это файлы SQL в каталоге `apps/api/drizzle/`.
 Их **две separate операции**:
 
 ### 1. Генерация (на хосте)
 
-Сравнивает схему Drizzle (`packages/db/src/schema/`) с последней миграцией
+Сравнивает схему Drizzle (`apps/api/src/schema/`) с последней миграцией
 и создаёт новый `.sql`-файл. **Не трогает БД.**
 
 ```bash
-npm run generate -w @panda-lavanda/db
+npm run generate:api
 ```
 
 > В репозитории нет ни одной миграции, поэтому перед первым `docker compose up`
@@ -153,8 +154,8 @@ docker compose run --rm migrate
 
 ### Типичный цикл изменения схемы
 
-1. Меняете код схемы в `packages/db/src/schema/`.
-2. `npm run generate -w @panda-lavanda/db` — появился новый `.sql`.
+1. Меняете код схемы в `apps/api/src/schema/`.
+2. `npm run generate:api` — появился новый `.sql`.
 3. `docker compose run --rm migrate` — применили к работающей БД.
 
 ---
@@ -174,8 +175,8 @@ docker exec -it panda-db psql -U panda -d panda
 ### Через Drizzle Studio
 
 ```bash
-# на хосте, со строкой подключения из .env
-npm run studio -w @panda-lavanda/db
+# на хосте, со строкой подключения из apps/api/.env
+npm run studio:api
 ```
 
 Studio откроется в браузере на http://localhost:4979 (порт может отличаться).
@@ -247,10 +248,10 @@ docker compose up -d
 
 ### Сервис `migrate` падает с «No migrations found»
 
-В `packages/db/drizzle/` ещё нет миграций. Сгенерируйте их:
+В `apps/api/drizzle/` ещё нет миграций. Сгенерируйте их:
 
 ```bash
-npm run generate -w @panda-lavanda/db
+npm run generate:api
 docker compose run --rm migrate
 ```
 
