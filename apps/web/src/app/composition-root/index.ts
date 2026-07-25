@@ -11,5 +11,9 @@
  * `storage.ts`, so this module must still only be referenced from server code
  * (e.g. inside a `createServerFn` handler), never from a client component.
  */
-export { productsRepository, getProductsUseCase } from './products'
+export {
+  getProductByIdUseCase,
+  getProductsUseCase,
+  productsRepository,
+} from './products'
 export { fileStorage } from './storage'

@@ -1,4 +1,7 @@
-import { GetProductsUseCase } from '@panda-lavanda/application'
+import {
+  GetProductByIdUseCase,
+  GetProductsUseCase,
+} from '@panda-lavanda/application'
 import type { IProductsRepository } from '@panda-lavanda/domain'
 import { HttpProductsRepository } from '@panda-lavanda/infrastructure'
 
@@ -25,3 +28,6 @@ export const productsRepository: IProductsRepository =
   new HttpProductsRepository({ baseUrl: env.BACKEND_URL })
 
 export const getProductsUseCase = new GetProductsUseCase(productsRepository)
+
+export const getProductByIdUseCase =
+  new GetProductByIdUseCase(productsRepository)

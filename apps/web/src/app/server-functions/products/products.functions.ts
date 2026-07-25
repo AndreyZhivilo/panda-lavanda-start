@@ -2,7 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 
 import { SortOrder } from '@panda-lavanda/domain'
-import { getProductsUseCase } from '#/app/composition-root'
+import { getProductByIdUseCase, getProductsUseCase } from '#/app/composition-root'
 
 /**
  * Input shape callers pass into {@link getProducts}.
@@ -59,6 +59,40 @@ export const getProducts = createServerFn({ method: 'GET' })
     if (result.isRight()) {
       const { items, total } = result.value
       return { ok: true as const, products: items, total, page: data.page }
+    }
+
+    const err = result.value
+    return {
+      ok: false as const,
+      message: err.message,
+    }
+  })
+
+/**
+ * Input shape callers pass into {@link getProduct}: the product id from the
+ * route param (`/products/$productId`). The route validates it as a UUID via
+ * its own zod schema in the loader, but we re-validate here as the trusted
+ * boundary before hitting the backend.
+ */
+const getProductInputSchema = z.object({
+  id: z.string().uuid(),
+})
+
+/**
+ * Loads a single product (with its exemplars) on the server.
+ *
+ * Same Either→discriminated-union fold as {@link getProducts}: the use case
+ * returns `Either<Error, IProduct | null>` (the repository maps a 404 to
+ * `null`), so the success branch carries `product: IProduct | null`. The page
+ * treats `null` as a "not found" case distinct from an error.
+ */
+export const getProduct = createServerFn({ method: 'GET' })
+  .validator(getProductInputSchema)
+  .handler(async ({ data }) => {
+    const result = await getProductByIdUseCase.execute(data.id)
+
+    if (result.isRight()) {
+      return { ok: true as const, product: result.value }
     }
 
     const err = result.value

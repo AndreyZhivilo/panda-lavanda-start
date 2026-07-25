@@ -1,4 +1,5 @@
 import { Heart } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
 
 import { isInStock, minPrice } from '@panda-lavanda/domain'
 import type { IProduct } from '@panda-lavanda/domain'
@@ -22,6 +23,10 @@ interface ProductCardProps {
  * Extracted from `catalog-page.tsx` so both the catalog and the favorites page
  * render the same card. The card is a pure presentational component: the
  * parent owns the favorite state (via {@link useFavorites}) and passes it in.
+ *
+ * The whole card links to the product's detail page (`/products/$productId`).
+ * The heart button is layered above the link (`relative z-10`) so its click
+ * toggles the favorite instead of navigating — avoiding a nested `<a>`.
  */
 export function ProductCard({
   product,
@@ -47,7 +52,7 @@ export function ProductCard({
           type="button"
           variant="ghost"
           size="icon"
-          className="absolute right-2 top-2 bg-background/80 backdrop-blur-sm"
+          className="absolute right-2 top-2 z-10 bg-background/80 backdrop-blur-sm"
           aria-label={
             isFavorite ? 'Убрать из избранного' : 'Добавить в избранное'
           }
@@ -61,8 +66,14 @@ export function ProductCard({
         </Button>
       </div>
 
-      <div className="flex flex-1 flex-col gap-2 p-4">
-        <h2 className="font-medium leading-snug">{product.name}</h2>
+      <Link
+        to="/products/$productId"
+        params={{ productId: product.id }}
+        className="group flex flex-1 flex-col gap-2 p-4 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+      >
+        <h2 className="font-medium leading-snug group-hover:underline">
+          {product.name}
+        </h2>
 
         <div className="mt-auto flex items-center justify-between">
           {price !== null ? (
@@ -85,7 +96,7 @@ export function ProductCard({
               : 'нет в наличии'}
           </span>
         </div>
-      </div>
+      </Link>
     </li>
   )
 }
