@@ -27,6 +27,13 @@ export const products = pgTable('products', {
   description: text('description').notNull(),
   categoryId: uuid('category_id').notNull(),
   images: jsonb('images').$type<string[]>().notNull(),
+  /**
+   * URL-friendly identifier derived from `name` via transliteration at creation
+   * time. Unique across products; used as the public URL segment
+   * (`/products/$productSlug`). The repository guarantees uniqueness by
+   * appending `-2`, `-3`, … on collision; the DB constraint is the final guard.
+   */
+  slug: varchar('slug', { length: 255 }).notNull().unique(),
   createdAt: timestamp('created_at', { withTimezone: true })
     .defaultNow()
     .notNull(),

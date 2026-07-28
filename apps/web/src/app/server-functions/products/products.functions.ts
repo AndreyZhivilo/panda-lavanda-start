@@ -2,7 +2,10 @@ import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 
 import { SortOrder } from '@panda-lavanda/domain'
-import { getProductByIdUseCase, getProductsUseCase } from '#/app/composition-root'
+import {
+  getProductBySlugUseCase,
+  getProductsUseCase,
+} from '#/app/composition-root'
 
 /**
  * Input shape callers pass into {@link getProducts}.
@@ -69,17 +72,16 @@ export const getProducts = createServerFn({ method: 'GET' })
   })
 
 /**
- * Input shape callers pass into {@link getProduct}: the product id from the
- * route param (`/products/$productId`). The route validates it as a UUID via
- * its own zod schema in the loader, but we re-validate here as the trusted
- * boundary before hitting the backend.
+ * Input shape callers pass into {@link getProduct}: the product slug from the
+ * route param (`/products/$productSlug`). The slug is the URL-friendly,
+ * transliterated product name — it is the public identifier in product URLs.
  */
 const getProductInputSchema = z.object({
-  id: z.string().uuid(),
+  slug: z.string().min(1),
 })
 
 /**
- * Loads a single product (with its exemplars) on the server.
+ * Loads a single product (with its exemplars) on the server, by slug.
  *
  * Same Either→discriminated-union fold as {@link getProducts}: the use case
  * returns `Either<Error, IProduct | null>` (the repository maps a 404 to
@@ -89,7 +91,7 @@ const getProductInputSchema = z.object({
 export const getProduct = createServerFn({ method: 'GET' })
   .validator(getProductInputSchema)
   .handler(async ({ data }) => {
-    const result = await getProductByIdUseCase.execute(data.id)
+    const result = await getProductBySlugUseCase.execute(data.slug)
 
     if (result.isRight()) {
       return { ok: true as const, product: result.value }

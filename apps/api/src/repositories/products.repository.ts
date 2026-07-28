@@ -1,4 +1,15 @@
-import { and, count, desc, eq, ilike, inArray, sql, type SQL } from 'drizzle-orm'
+import {
+  and,
+  count,
+  desc,
+  eq,
+  ilike,
+  inArray,
+  like,
+  or,
+  sql,
+  type SQL,
+} from 'drizzle-orm'
 
 import type {
   CreateExemplarData,
@@ -19,6 +30,7 @@ import {
   products as productsTable,
 } from '../schema/products'
 import type { ExemplarRow, ProductRow } from '../schema/products'
+import { toSlug } from '../utils/slug'
 
 /** Default page size when `filters.pageSize` is omitted. */
 const DEFAULT_PAGE_SIZE = 20
@@ -33,6 +45,7 @@ const MAX_PAGE_SIZE = 100
  */
 type ProductSelectRow = {
   id: ProductRow['id']
+  slug: ProductRow['slug']
   name: ProductRow['name']
   description: ProductRow['description']
   category: ProductRow['categoryId']
@@ -71,6 +84,7 @@ export class ProductsRepository implements IProductsRepository {
         .insert(productsTable)
         .values({
           name: data.name,
+          slug: await this.findUniqueSlug(tx, toSlug(data.name)),
           description: data.description,
           categoryId: data.category,
           images: data.images,
@@ -109,6 +123,7 @@ export class ProductsRepository implements IProductsRepository {
     const productRowsPromise = this.db
       .select({
         id: productsTable.id,
+        slug: productsTable.slug,
         name: productsTable.name,
         description: productsTable.description,
         category: productsTable.categoryId,
@@ -189,6 +204,7 @@ export class ProductsRepository implements IProductsRepository {
     const [productRow] = await this.db
       .select({
         id: productsTable.id,
+        slug: productsTable.slug,
         name: productsTable.name,
         description: productsTable.description,
         category: productsTable.categoryId,
@@ -205,6 +221,31 @@ export class ProductsRepository implements IProductsRepository {
       .select()
       .from(exemplarsTable)
       .where(eq(exemplarsTable.productId, id))
+
+    return this.mergeProducts([productRow], exemplarRows)[0]
+  }
+
+  async getBySlug(slug: string): Promise<IProduct | null> {
+    const [productRow] = await this.db
+      .select({
+        id: productsTable.id,
+        slug: productsTable.slug,
+        name: productsTable.name,
+        description: productsTable.description,
+        category: productsTable.categoryId,
+        images: productsTable.images,
+        createdAt: productsTable.createdAt,
+      })
+      .from(productsTable)
+      .where(eq(productsTable.slug, slug))
+      .limit(1)
+
+    if (!productRow) return null
+
+    const exemplarRows = await this.db
+      .select()
+      .from(exemplarsTable)
+      .where(eq(exemplarsTable.productId, productRow.id))
 
     return this.mergeProducts([productRow], exemplarRows)[0]
   }
@@ -378,12 +419,50 @@ export class ProductsRepository implements IProductsRepository {
 
     return productRows.map((p) => ({
       id: p.id,
+      slug: p.slug,
       name: p.name,
       description: p.description,
       category: p.category,
       images: p.images,
       exemplars: (exemplarsByProductId.get(p.id) ?? []).map(toExemplar),
     }))
+  }
+
+  /**
+   * Returns a slug guaranteed to be free in the `products` table at call time,
+   * appending `-2`, `-3`, … when the base slug is already taken. `base` is the
+   * transliterated name (see {@link toSlug}); if it is empty, a fallback is
+   * used so the `NOT NULL` column is never written an empty string.
+   *
+   * This is a pre-check that races against concurrent inserts; the
+   * `UNIQUE` DB constraint is the final guard and will reject any collision
+   * that slips through (surfacing as a constraint-violation error). Run inside
+   * the `create` transaction so the window is as small as possible.
+   */
+  private async findUniqueSlug(
+    tx: Parameters<Parameters<Db['transaction']>[0]>[0],
+    base: string,
+  ): Promise<string> {
+    const candidate = base || 'product'
+    // Collect existing slugs that would collide: the exact base or any
+    // `base-<n>` suffix. A single query covers both forms.
+    const rows = await tx
+      .select({ slug: productsTable.slug })
+      .from(productsTable)
+      .where(
+        or(
+          eq(productsTable.slug, candidate),
+          like(productsTable.slug, `${candidate}-%`),
+        ),
+      )
+    const taken = new Set(rows.map((r) => r.slug))
+    if (!taken.has(candidate)) return candidate
+    // The seed cycle appends ` #N` to names, which transliterates into the
+    // slug as `-n`, so start probing from 2 to stay aligned with that scheme.
+    for (let n = 2; ; n++) {
+      const next = `${candidate}-${n}`
+      if (!taken.has(next)) return next
+    }
   }
 }
 

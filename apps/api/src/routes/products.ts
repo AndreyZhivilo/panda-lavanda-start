@@ -85,6 +85,11 @@ const productIdParamsSchema = z.object({
   id: z.string().uuid(),
 })
 
+/** Params schema for the slug-based lookup route. */
+const productSlugParamsSchema = z.object({
+  slug: z.string().min(1),
+})
+
 /** Params schema for exemplar sub-resource routes `/.../:exemplarId`. */
 const exemplarIdParamsSchema = z.object({
   productId: z.string().uuid(),
@@ -131,6 +136,15 @@ export const productsRoutes: FastifyPluginAsync = async (
     const product = await fastify.productsRepository.getById(id)
     if (!product) {
       throw new NotFoundError('Product', id)
+    }
+    return product
+  })
+
+  fastify.get('/products/by-slug/:slug', async (request) => {
+    const { slug } = productSlugParamsSchema.parse(request.params)
+    const product = await fastify.productsRepository.getBySlug(slug)
+    if (!product) {
+      throw new NotFoundError('Product', slug)
     }
     return product
   })

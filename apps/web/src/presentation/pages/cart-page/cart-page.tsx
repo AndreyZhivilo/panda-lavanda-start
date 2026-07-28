@@ -187,13 +187,17 @@ function CartLine({
 
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex items-start justify-between gap-2">
-          <Link
-            to="/products/$productId"
-            params={{ productId: item.productId }}
-            className="min-w-0 truncate font-medium hover:underline"
-          >
-            {product?.name ?? 'Товар недоступен'}
-          </Link>
+          {product ? (
+            <Link
+              to="/products/$productSlug"
+              params={{ productSlug: product.slug }}
+              className="min-w-0 truncate font-medium hover:underline"
+            >
+              {product.name}
+            </Link>
+          ) : (
+            <span className="min-w-0 truncate font-medium">Товар недоступен</span>
+          )}
           <Button
             type="button"
             variant="ghost"

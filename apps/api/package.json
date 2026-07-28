@@ -18,6 +18,7 @@
     "@panda-lavanda/domain": "*",
     "@panda-lavanda/shared": "*",
     "@fastify/cors": "^10.0.2",
+    "cyrillic-to-translit-js": "^3.2.1",
     "drizzle-orm": "^0.45.2",
     "fastify": "^5.2.1",
     "fastify-plugin": "^5.1.0",

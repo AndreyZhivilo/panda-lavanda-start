@@ -23,7 +23,7 @@ type ProductLoaderData =
   | { ok: false; message: string }
 
 export function ProductPage() {
-  const data = useLoaderData({ from: '/products/$productId' }) as ProductLoaderData
+  const data = useLoaderData({ from: '/products/$productSlug' }) as ProductLoaderData
   const router = useRouter()
   const { isFavorite, toggle, isToggling } = useFavorites()
   const { addItem, isPending: isCartPending } = useCart()

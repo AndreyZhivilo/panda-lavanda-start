@@ -13,6 +13,7 @@
  */
 export {
   getProductByIdUseCase,
+  getProductBySlugUseCase,
   getProductsUseCase,
   productsRepository,
 } from './products'

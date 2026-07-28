@@ -33,7 +33,7 @@ interface ProductCardProps {
  * parent owns the favorite/cart state (via {@link useFavorites} /
  * {@link useCart}) and passes it in.
  *
- * The whole card links to the product's detail page (`/products/$productId`)
+ * The whole card links to the product's detail page (`/products/$productSlug`)
  * via a "stretched link": the `<Link>` is absolutely positioned to cover the
  * entire card (`z-0`), so any empty area navigates on click. The interactive
  * controls (heart + cart) sit in the normal flow but carry `relative z-10`,
@@ -124,8 +124,8 @@ export function ProductCard({
       {/* Stretched link covering the whole card. Sits below the controls
           (z-0) so clicks on the heart / cart buttons are not hijacked. */}
       <Link
-        to="/products/$productId"
-        params={{ productId: product.id }}
+        to="/products/$productSlug"
+        params={{ productSlug: product.slug }}
         aria-label={`Открыть товар: ${product.name}`}
         className="absolute inset-0 z-0 focus-visible:rounded-lg focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
       />

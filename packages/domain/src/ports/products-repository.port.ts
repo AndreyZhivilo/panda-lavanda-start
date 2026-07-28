@@ -58,6 +58,8 @@ export interface IProductsRepository {
   getMany(filters: IProductFilters): Promise<Paginated<IProduct>>
   /** Returns a single product by id, or `null` if not found. */
   getById(id: UniqueId): Promise<IProduct | null>
+  /** Returns a single product by slug, or `null` if not found. */
+  getBySlug(slug: string): Promise<IProduct | null>
   /** Permanently deletes a product by id (cascades to exemplars). */
   delete(id: UniqueId): Promise<void>
   /** Updates a product by id; returns the updated product or `null` if missing. */

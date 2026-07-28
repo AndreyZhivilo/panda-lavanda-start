@@ -15,6 +15,13 @@
       "when": 1784556975309,
       "tag": "0001_panoramic_whizzer",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785215921297,
+      "tag": "0002_absurd_rhino",
+      "breakpoints": true
     }
   ]
 }

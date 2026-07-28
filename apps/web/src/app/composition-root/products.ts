@@ -1,5 +1,6 @@
 import {
   GetProductByIdUseCase,
+  GetProductBySlugUseCase,
   GetProductsUseCase,
 } from '@panda-lavanda/application'
 import type { IProductsRepository } from '@panda-lavanda/domain'
@@ -31,3 +32,6 @@ export const getProductsUseCase = new GetProductsUseCase(productsRepository)
 
 export const getProductByIdUseCase =
   new GetProductByIdUseCase(productsRepository)
+
+export const getProductBySlugUseCase =
+  new GetProductBySlugUseCase(productsRepository)

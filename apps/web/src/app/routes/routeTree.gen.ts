@@ -14,7 +14,7 @@ import { Route as CatalogRouteImport } from './catalog'
 import { Route as CartRouteImport } from './cart'
 import { Route as AboutRouteImport } from './about'
 import { Route as IndexRouteImport } from './index'
-import { Route as ProductsProductIdRouteImport } from './products.$productId'
+import { Route as ProductsProductSlugRouteImport } from './products.$productSlug'
 
 const FavoritesRoute = FavoritesRouteImport.update({
   id: '/favorites',
@@ -41,9 +41,9 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProductsProductIdRoute = ProductsProductIdRouteImport.update({
-  id: '/products/$productId',
-  path: '/products/$productId',
+const ProductsProductSlugRoute = ProductsProductSlugRouteImport.update({
+  id: '/products/$productSlug',
+  path: '/products/$productSlug',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -53,7 +53,7 @@ export interface FileRoutesByFullPath {
   '/cart': typeof CartRoute
   '/catalog': typeof CatalogRoute
   '/favorites': typeof FavoritesRoute
-  '/products/$productId': typeof ProductsProductIdRoute
+  '/products/$productSlug': typeof ProductsProductSlugRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -61,7 +61,7 @@ export interface FileRoutesByTo {
   '/cart': typeof CartRoute
   '/catalog': typeof CatalogRoute
   '/favorites': typeof FavoritesRoute
-  '/products/$productId': typeof ProductsProductIdRoute
+  '/products/$productSlug': typeof ProductsProductSlugRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -70,7 +70,7 @@ export interface FileRoutesById {
   '/cart': typeof CartRoute
   '/catalog': typeof CatalogRoute
   '/favorites': typeof FavoritesRoute
-  '/products/$productId': typeof ProductsProductIdRoute
+  '/products/$productSlug': typeof ProductsProductSlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -80,7 +80,7 @@ export interface FileRouteTypes {
     | '/cart'
     | '/catalog'
     | '/favorites'
-    | '/products/$productId'
+    | '/products/$productSlug'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -88,7 +88,7 @@ export interface FileRouteTypes {
     | '/cart'
     | '/catalog'
     | '/favorites'
-    | '/products/$productId'
+    | '/products/$productSlug'
   id:
     | '__root__'
     | '/'
@@ -96,7 +96,7 @@ export interface FileRouteTypes {
     | '/cart'
     | '/catalog'
     | '/favorites'
-    | '/products/$productId'
+    | '/products/$productSlug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -105,7 +105,7 @@ export interface RootRouteChildren {
   CartRoute: typeof CartRoute
   CatalogRoute: typeof CatalogRoute
   FavoritesRoute: typeof FavoritesRoute
-  ProductsProductIdRoute: typeof ProductsProductIdRoute
+  ProductsProductSlugRoute: typeof ProductsProductSlugRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -145,11 +145,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/products/$productId': {
-      id: '/products/$productId'
-      path: '/products/$productId'
-      fullPath: '/products/$productId'
-      preLoaderRoute: typeof ProductsProductIdRouteImport
+    '/products/$productSlug': {
+      id: '/products/$productSlug'
+      path: '/products/$productSlug'
+      fullPath: '/products/$productSlug'
+      preLoaderRoute: typeof ProductsProductSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -161,8 +161,17 @@ const rootRouteChildren: RootRouteChildren = {
   CartRoute: CartRoute,
   CatalogRoute: CatalogRoute,
   FavoritesRoute: FavoritesRoute,
-  ProductsProductIdRoute: ProductsProductIdRoute,
+  ProductsProductSlugRoute: ProductsProductSlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from '../router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}

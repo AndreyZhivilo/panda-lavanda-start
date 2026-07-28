@@ -31,6 +31,7 @@ import { createInterface } from 'node:readline/promises'
 
 import { createDb } from '../src/db/client'
 import { exemplars, products } from '../src/schema/products'
+import { toSlug } from '../src/utils/slug'
 
 /** Default number of products to seed. */
 const DEFAULT_COUNT = 10
@@ -303,12 +304,32 @@ async function runSeed(connectionString: string, count: number): Promise<void> {
     const toInsert = buildInsertList(count)
     console.log(`🌱 Inserting ${toInsert.length} product(s)...`)
 
+    // Track slugs locally: the seed bypasses the repository (and therefore its
+    // findUniqueSlug helper), so duplicates are resolved here against this Set.
+    // The table was just TRUNCATEd, so the Set is the only collision source.
+    const usedSlugs = new Set<string>()
+    const uniqueSlugFor = (name: string): string => {
+      const base = toSlug(name) || 'product'
+      if (!usedSlugs.has(base)) {
+        usedSlugs.add(base)
+        return base
+      }
+      for (let n = 2; ; n++) {
+        const next = `${base}-${n}`
+        if (!usedSlugs.has(next)) {
+          usedSlugs.add(next)
+          return next
+        }
+      }
+    }
+
     let exemplarCount = 0
     for (const item of toInsert) {
       const [product] = await db
         .insert(products)
         .values({
           name: item.name,
+          slug: uniqueSlugFor(item.name),
           description: item.description,
           categoryId: item.categoryId,
           images: item.images,

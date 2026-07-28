@@ -47,6 +47,13 @@ export interface IExemplar {
 /** A sellable product with its variants (exemplars). */
 export interface IProduct {
   id: UniqueId
+  /**
+   * URL-friendly identifier, auto-derived from {@link name} via
+   * transliteration at creation time. Unique across products and used as the
+   * public URL segment (`/products/$productSlug`). Fixed once created: renaming
+   * the product does not change the slug, so existing links stay valid.
+   */
+  slug: string
   name: string
   description: string
   category: UniqueId

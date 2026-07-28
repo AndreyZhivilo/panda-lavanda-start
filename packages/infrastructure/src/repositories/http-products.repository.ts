@@ -55,6 +55,17 @@ export class HttpProductsRepository
     return (await response.json()) as IProduct
   }
 
+  async getBySlug(slug: string): Promise<IProduct | null> {
+    // 404 → null: see `getById`. `slug` is URL-encoded because it is a
+    // user-facing path segment (though generated slugs are already URL-safe).
+    const response = await this.request(
+      `/products/by-slug/${encodeURIComponent(slug)}`,
+      { method: 'GET' },
+    )
+    if (response.status === 404) return null
+    return (await response.json()) as IProduct
+  }
+
   async delete(id: UniqueId): Promise<void> {
     await this.del(`/products/${id}`)
   }
