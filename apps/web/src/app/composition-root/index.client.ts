@@ -1,9 +1,18 @@
 import {
+  AddCartItemUseCase,
+  ClearCartUseCase,
+  GetCartUseCase,
   GetCurrentUserUseCase,
+  RemoveCartItemUseCase,
+  SetCartQuantityUseCase,
   ToggleFavoriteProductUseCase,
 } from '@panda-lavanda/application'
-import type { IUserRepository } from '@panda-lavanda/domain'
-import { CrashReporterService, LocalStorageUserRepository } from '@panda-lavanda/infrastructure/index.client.ts'
+import type { ICartRepository, IUserRepository } from '@panda-lavanda/domain'
+import {
+  CrashReporterService,
+  LocalStorageCartRepository,
+  LocalStorageUserRepository,
+} from '@panda-lavanda/infrastructure/index.client.ts'
 
 /**
  * Client-only composition root.
@@ -51,3 +60,14 @@ export const getCurrentUserUseCase = new GetCurrentUserUseCase(userRepository)
 export const toggleFavoriteProductUseCase = new ToggleFavoriteProductUseCase(
   userRepository,
 )
+
+export const cartRepository: ICartRepository = new LocalStorageCartRepository(
+  'panda-lavanda:cart',
+  crashReporter,
+)
+
+export const getCartUseCase = new GetCartUseCase(cartRepository, crashReporter)
+export const addCartItemUseCase = new AddCartItemUseCase(cartRepository, crashReporter)
+export const removeCartItemUseCase = new RemoveCartItemUseCase(cartRepository, crashReporter)
+export const setCartQuantityUseCase = new SetCartQuantityUseCase(cartRepository, crashReporter)
+export const clearCartUseCase = new ClearCartUseCase(cartRepository, crashReporter)

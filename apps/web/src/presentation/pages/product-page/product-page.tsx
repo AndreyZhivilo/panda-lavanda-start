@@ -1,12 +1,13 @@
 import type { IProduct } from '@panda-lavanda/domain'
-import { isInStock, minPrice } from '@panda-lavanda/domain'
-import { Heart } from 'lucide-react'
+import { isInStock, minPrice, primaryExemplar } from '@panda-lavanda/domain'
+import { Heart, ShoppingCart } from 'lucide-react'
 import { Link, useLoaderData, useRouter } from '@tanstack/react-router'
+import { useState } from 'react'
 
 import { Button } from '#/shared/components/button'
 import { ExemplarSelector } from '#/shared/components/exemplar-selector'
 import { ProductGallery } from '#/shared/components/product-gallery'
-import { useFavorites } from '#/shared/hooks'
+import { useCart, useFavorites } from '#/shared/hooks'
 import { cn } from '#/shared/lib/utils'
 
 /**
@@ -25,6 +26,7 @@ export function ProductPage() {
   const data = useLoaderData({ from: '/products/$productId' }) as ProductLoaderData
   const router = useRouter()
   const { isFavorite, toggle, isToggling } = useFavorites()
+  const { addItem, isPending: isCartPending } = useCart()
 
   if (!data.ok) {
     return (
@@ -63,6 +65,26 @@ export function ProductPage() {
   const favorite = isFavorite(product.id)
   const price = minPrice(product)
   const inStock = isInStock(product)
+
+  // Lifted selection state: the add-to-cart button below needs to know which
+  // exemplar (size) the shopper picked. Defaults to the primary exemplar
+  // (first in-stock, else the first) so there is always a sensible selection.
+  const [selectedExemplarId, setSelectedExemplarId] = useState(
+    primaryExemplar(product)?.id,
+  )
+  const selectedExemplar = product.exemplars.find(
+    (e) => e.id === selectedExemplarId,
+  )
+  const canAddToCart = Boolean(selectedExemplar?.inStock)
+
+  const handleAddToCart = () => {
+    if (!selectedExemplar) return
+    addItem({
+      exemplarId: selectedExemplar.id,
+      productId: product.id,
+      quantity: 1,
+    })
+  }
 
   return (
     <div className="mx-auto max-w-5xl p-4 md:p-8">
@@ -114,7 +136,22 @@ export function ProductPage() {
             </p>
           ) : null}
 
-          <ExemplarSelector exemplars={product.exemplars} />
+          <ExemplarSelector
+            exemplars={product.exemplars}
+            selectedId={selectedExemplarId}
+            onSelectChange={setSelectedExemplarId}
+          />
+
+          <Button
+            type="button"
+            size="lg"
+            className="mt-1 w-full sm:w-auto"
+            disabled={!canAddToCart || isCartPending}
+            onClick={handleAddToCart}
+          >
+            <ShoppingCart />
+            В корзину
+          </Button>
         </div>
       </div>
     </div>

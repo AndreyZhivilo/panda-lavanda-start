@@ -77,6 +77,37 @@ export function isInStock(product: IProduct): boolean {
   return product.exemplars.some((e) => e.inStock)
 }
 
+/**
+ * The "primary" exemplar of a product — the first in-stock exemplar, or the
+ * first exemplar if none are in stock, or `undefined` when the product has no
+ * exemplars at all.
+ *
+ * Pure function over the {@link IProduct} value. Used as the default selection
+ * when adding to the cart from a context where the shopper has not yet chosen a
+ * size (e.g. a product card in the catalog grid).
+ */
+export function primaryExemplar(product: IProduct): IExemplar | undefined {
+  return product.exemplars.find((e) => e.inStock) ?? product.exemplars[0]
+}
+
+/**
+ * Human-readable label for a {@link Size} value.
+ *
+ * Pure function over the {@link Size} value. Lives in the domain layer so the
+ * label has a single, consistent definition shared by the exemplar selector,
+ * the cart page and anywhere else a size is rendered.
+ */
+export function sizeLabel(size: Size): string {
+  switch (size) {
+    case Size.P9:
+      return 'P9'
+    case Size.P11:
+      return 'P11'
+    default:
+      return size
+  }
+}
+
 /** Filters for querying a list of products. */
 export interface IProductFilters {
   /** Filter by category. */

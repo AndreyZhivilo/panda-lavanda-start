@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import type { IProduct } from '@panda-lavanda/domain'
+import { primaryExemplar } from '@panda-lavanda/domain'
 import { useLoaderData, useRouter, useSearch } from '@tanstack/react-router'
 import { Search } from 'lucide-react'
 
 import { Button } from '#/shared/components/button'
 import { Input } from '#/shared/components/input'
 import { ProductCard } from '#/shared/components/product-card'
-import { useDebouncedCallback, useFavorites } from '#/shared/hooks'
+import { useCart, useDebouncedCallback, useFavorites } from '#/shared/hooks'
 
 import { pageRange, type PageItem } from './page-range'
 
@@ -49,6 +50,7 @@ export function CatalogPage() {
   const router = useRouter()
   const { q } = useSearch({ from: '/catalog' })
   const { isFavorite, toggle, isToggling } = useFavorites()
+  const { addItem, isPending: isCartPending } = useCart()
 
   // Local input value, seeded once from the URL so a shared link like
   // `/catalog?q=monstera` shows the query in the field on first paint. After
@@ -128,15 +130,31 @@ export function CatalogPage() {
       ) : (
         <>
           <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {products.map((product) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                isFavorite={isFavorite(product.id)}
-                onToggleFavorite={() => toggle(product.id)}
-                isTogglingFavorite={isToggling}
-              />
-            ))}
+            {products.map((product) => {
+              // The catalog card has no size picker; quick-add uses the
+              // product's primary exemplar (first in-stock, else the first).
+              const primary = primaryExemplar(product)
+              return (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  isFavorite={isFavorite(product.id)}
+                  onToggleFavorite={() => toggle(product.id)}
+                  isTogglingFavorite={isToggling}
+                  onAddToCart={
+                    primary
+                      ? () =>
+                          addItem({
+                            exemplarId: primary.id,
+                            productId: product.id,
+                            quantity: 1,
+                          })
+                      : undefined
+                  }
+                  isAddingToCart={isCartPending}
+                />
+              )
+            })}
           </ul>
 
           {totalPages > 1 && (

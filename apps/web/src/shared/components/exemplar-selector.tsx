@@ -1,6 +1,4 @@
-import { useMemo, useState } from 'react'
-
-import { Size } from '@panda-lavanda/domain'
+import { sizeLabel } from '@panda-lavanda/domain'
 import type { IExemplar } from '@panda-lavanda/domain'
 import type { PriceInRub, UniqueId } from '@panda-lavanda/shared'
 
@@ -8,25 +6,26 @@ import { cn } from '#/shared/lib/utils'
 
 interface ExemplarSelectorProps {
   exemplars: IExemplar[]
+  /** The currently selected exemplar id, or `undefined` if none is selected. */
+  selectedId?: UniqueId
+  /** Called when the shopper picks a different size. */
+  onSelectChange: (id: UniqueId) => void
 }
 
 /**
  * Selectable list of a product's exemplars (size / price / availability).
  *
- * Pure presentational: owns only local selection state (`useState`). Prefers
- * the first in-stock exemplar on mount; the price and stock badge below the
- * size buttons reflect the selected exemplar. Out-of-stock sizes stay
- * selectable (so the price is still visible) but are visibly de-emphasized.
+ * Pure presentational and **controlled**: the parent owns the selection
+ * (`selectedId` + `onSelectChange`) so it can drive a downstream action such
+ * as add-to-cart. The price and stock badge below the size buttons reflect the
+ * selected exemplar. Out-of-stock sizes stay selectable (so the price is still
+ * visible) but are visibly de-emphasized.
  */
-export function ExemplarSelector({ exemplars }: ExemplarSelectorProps) {
-  const firstInStockId = useMemo(
-    () => exemplars.find((e) => e.inStock)?.id ?? exemplars[0]?.id,
-    [exemplars],
-  )
-  const [selectedId, setSelectedId] = useState<UniqueId | undefined>(
-    firstInStockId,
-  )
-
+export function ExemplarSelector({
+  exemplars,
+  selectedId,
+  onSelectChange,
+}: ExemplarSelectorProps) {
   const selected = exemplars.find((e) => e.id === selectedId) ?? exemplars[0]
 
   if (exemplars.length === 0) {
@@ -47,7 +46,7 @@ export function ExemplarSelector({ exemplars }: ExemplarSelectorProps) {
               key={exemplar.id}
               exemplar={exemplar}
               selected={exemplar.id === selected?.id}
-              onSelect={() => setSelectedId(exemplar.id)}
+              onSelect={() => onSelectChange(exemplar.id)}
             />
           ))}
         </div>
@@ -98,18 +97,6 @@ function SizeButton({ exemplar, selected, onSelect }: SizeButtonProps) {
       {sizeLabel(exemplar.size)}
     </button>
   )
-}
-
-/** Human-readable label for a {@link Size} value. */
-function sizeLabel(size: Size): string {
-  switch (size) {
-    case Size.P9:
-      return 'P9'
-    case Size.P11:
-      return 'P11'
-    default:
-      return size
-  }
 }
 
 function formatPrice(price: PriceInRub): string {
