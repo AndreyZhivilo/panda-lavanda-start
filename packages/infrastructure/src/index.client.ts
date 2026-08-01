@@ -11,15 +11,21 @@
  * client bundle. Client code (the web app's `index.client.ts` composition root)
  * must import from here, never from the main barrel.
  *
- * `HttpProductsRepository` is client-safe: it uses only the platform `fetch`,
- * no Node imports, no Drizzle, so it is exported from both barrels.
+ * `HttpProductsRepository` and `HttpOrdersRepository` are client-safe: they use
+ * only the platform `fetch`, no Node imports, no Drizzle, so they are exported
+ * from both barrels.
+ *
+ * `SonnerNotificationService` is client-only by design (it renders into the
+ * DOM via `sonner`), so it lives in this barrel only.
  *
  * When adding a new infrastructure module, place it in this barrel only if it
  * has no Node-only imports (no `node:*`, no Drizzle, no postgres driver).
  * Server-only modules belong in `index.ts` only.
  */
 export * from './api/crash-reporter.service'
+export * from './notifications/sonner-notification.service'
 export * from './repositories/http.repository'
+export * from './repositories/http-orders.repository'
 export * from './repositories/http-products.repository'
 export * from './storage/local-storage.repository'
 export * from './storage/local-storage-cart.repository'

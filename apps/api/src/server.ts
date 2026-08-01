@@ -5,6 +5,7 @@ import { ZodError } from 'zod'
 import { env } from './env'
 import { HttpError } from './errors'
 import { dbPlugin } from './plugins/db'
+import { ordersRoutes } from './routes/orders'
 import { productsRoutes } from './routes/products'
 
 /**
@@ -69,6 +70,7 @@ export async function buildServer() {
 
   // REST routes (mounted at the root prefix — endpoints are /products, ...).
   await fastify.register(productsRoutes)
+  await fastify.register(ordersRoutes)
 
   return fastify
 }

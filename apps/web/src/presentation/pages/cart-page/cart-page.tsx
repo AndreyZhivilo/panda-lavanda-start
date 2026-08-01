@@ -133,10 +133,11 @@ export function CartPage() {
         <aside className="lg:sticky lg:top-4 h-fit rounded-lg border bg-background p-5">
           <h2 className="text-sm font-medium text-muted-foreground">Итого</h2>
           <p className="mt-1 text-2xl font-semibold">{formatPrice(subtotal)}</p>
-          <Button type="button" size="lg" className="mt-4 w-full" disabled>
-            {/* TODO: checkout flow — handled in a separate task. */}
-            <ShoppingCart />
-            Оформить заказ
+          <Button type="button" size="lg" className="mt-4 w-full" asChild>
+            <Link to="/checkout">
+              <ShoppingCart />
+              Оформить заказ
+            </Link>
           </Button>
           <Link
             to="/catalog"

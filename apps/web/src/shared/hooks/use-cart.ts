@@ -25,7 +25,7 @@ import {
  * Shared between {@link useCart} reads and invalidations so every component
  * subscribed to the cart re-renders after a mutation.
  */
-const CART_QUERY_KEY = ['cart'] as const
+export const CART_QUERY_KEY = ['cart'] as const
 
 /**
  * Resolves the client use cases per environment.

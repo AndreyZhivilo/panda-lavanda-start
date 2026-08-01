@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
+import { Toaster } from 'sonner'
 
 import appCss from '../styles.css?url'
 
@@ -33,12 +34,17 @@ export const Route = createRootRoute({
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
       </head>
-      <body>
+      <body suppressHydrationWarning>
         <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        {/* Toast host. Mounted once at the root so notifications survive
+            navigation (e.g. the success toast shown by `CreateOrderUseCase`
+            right before the checkout page redirects to `/`). Driven by
+            `SonnerNotificationService` on the client. */}
+        <Toaster position="top-center" richColors />
         <TanStackDevtools
           config={{ position: 'bottom-right' }}
           plugins={[

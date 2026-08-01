@@ -17,4 +17,5 @@ export {
   getProductsUseCase,
   productsRepository,
 } from './products'
+export { ordersRepository } from './orders'
 export { fileStorage } from './storage'

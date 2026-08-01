@@ -13,6 +13,7 @@
   "dependencies": {
     "@panda-lavanda/domain": "*",
     "@panda-lavanda/shared": "*",
+    "sonner": "^2.0.7",
     "zod": "^4.4.3"
   }
 }

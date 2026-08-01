@@ -1,6 +1,7 @@
 import {
   AddCartItemUseCase,
   ClearCartUseCase,
+  CreateOrderUseCase,
   GetCartUseCase,
   GetCurrentUserUseCase,
   RemoveCartItemUseCase,
@@ -12,7 +13,10 @@ import {
   CrashReporterService,
   LocalStorageCartRepository,
   LocalStorageUserRepository,
+  SonnerNotificationService,
 } from '@panda-lavanda/infrastructure/index.client.ts'
+
+import { ServerFnOrdersRepository } from './server-orders.repository'
 
 /**
  * Client-only composition root.
@@ -71,3 +75,19 @@ export const addCartItemUseCase = new AddCartItemUseCase(cartRepository, crashRe
 export const removeCartItemUseCase = new RemoveCartItemUseCase(cartRepository, crashReporter)
 export const setCartQuantityUseCase = new SetCartQuantityUseCase(cartRepository, crashReporter)
 export const clearCartUseCase = new ClearCartUseCase(cartRepository, crashReporter)
+
+// --- Checkout ---------------------------------------------------------------
+// `CreateOrderUseCase` runs on the client and owns the checkout side-effects:
+// it persists the order (via the RPC adapter below), clears the cart, and shows
+// a success toast. All three are client-only concerns (LocalStorage cart,
+// sonner toasts, a server-function RPC), so the whole orchestration is wired
+// here rather than in the server composition root. See the use case and
+// `ServerFnOrdersRepository` for why the order write goes through a server fn.
+const notifications = new SonnerNotificationService()
+const ordersRepository = new ServerFnOrdersRepository()
+export const createOrderUseCase = new CreateOrderUseCase(
+  ordersRepository,
+  cartRepository,
+  notifications,
+  crashReporter,
+)
