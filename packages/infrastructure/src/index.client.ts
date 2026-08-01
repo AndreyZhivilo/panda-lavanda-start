@@ -11,7 +11,8 @@
  * client bundle. Client code (the web app's `index.client.ts` composition root)
  * must import from here, never from the main barrel.
  *
- * `HttpProductsRepository` and `HttpOrdersRepository` are client-safe: they use
+ * `HttpProductsRepository`, `HttpOrdersRepository` and
+ * `HttpCategoriesRepository` are client-safe: they use
  * only the platform `fetch`, no Node imports, no Drizzle, so they are exported
  * from both barrels.
  *
@@ -25,6 +26,7 @@
 export * from './api/crash-reporter.service'
 export * from './notifications/sonner-notification.service'
 export * from './repositories/http.repository'
+export * from './repositories/http-categories.repository'
 export * from './repositories/http-orders.repository'
 export * from './repositories/http-products.repository'
 export * from './storage/local-storage.repository'

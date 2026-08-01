@@ -23,12 +23,17 @@ import {
  *
  * `search`, when provided, filters products by name (case-insensitive
  * substring match). The catalog route passes the `q` URL search param here.
+ *
+ * `categoryId`, when provided, restricts the result to one category — used by
+ * the category page (`/categories/$categorySlug`) to list the products of the
+ * resolved category.
  */
 const getProductsInputSchema = z.object({
   page: z.number().int().positive().default(1),
   ids: z.array(z.string()).optional(),
   pageSize: z.number().int().positive().optional(),
   search: z.string().optional(),
+  categoryId: z.string().uuid().optional(),
 })
 
 /**
@@ -56,6 +61,7 @@ export const getProducts = createServerFn({ method: 'GET' })
       ids: data.ids,
       pageSize: data.pageSize,
       search: data.search,
+      categoryId: data.categoryId,
       sort: [SortOrder.OUT_OF_STOCK_LAST],
     })
 

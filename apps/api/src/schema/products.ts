@@ -10,6 +10,8 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core'
 
+import { categories } from './categories'
+
 /**
  * Size enum — mirrors the domain `Size` values.
  * Keep the string values in sync with `@panda-lavanda/domain` (products/product.ts).
@@ -25,7 +27,11 @@ export const products = pgTable('products', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: varchar('name', { length: 255 }).notNull(),
   description: text('description').notNull(),
-  categoryId: uuid('category_id').notNull(),
+  // Внешний ключ на категорию товара. Удаление категории, на которую
+  // ссылаются товары, запрещено (`no action`) — чтобы не потерять товары.
+  categoryId: uuid('category_id')
+    .notNull()
+    .references(() => categories.id),
   images: jsonb('images').$type<string[]>().notNull(),
   /**
    * URL-friendly identifier derived from `name` via transliteration at creation

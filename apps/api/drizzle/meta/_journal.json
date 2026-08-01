@@ -29,6 +29,13 @@
       "when": 1785257750336,
       "tag": "0003_worried_guardian",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785477522244,
+      "tag": "0004_concerned_tarantula",
+      "breakpoints": true
     }
   ]
 }

@@ -1,4 +1,5 @@
 export * from './cart'
+export * from './categories'
 export * from './favorites'
 export * from './orders'
 export * from './products'

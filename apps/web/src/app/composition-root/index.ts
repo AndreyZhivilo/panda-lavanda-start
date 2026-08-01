@@ -17,5 +17,9 @@ export {
   getProductsUseCase,
   productsRepository,
 } from './products'
+export {
+  getCategoriesUseCase,
+  getCategoryBySlugUseCase,
+} from './categories'
 export { ordersRepository } from './orders'
 export { fileStorage } from './storage'

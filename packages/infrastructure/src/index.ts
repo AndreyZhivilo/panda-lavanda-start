@@ -1,5 +1,6 @@
 export * from './api/crash-reporter.service'
 export * from './repositories/http.repository'
+export * from './repositories/http-categories.repository'
 export * from './repositories/http-orders.repository'
 export * from './repositories/http-products.repository'
 export * from './storage/local-file-storage.service'

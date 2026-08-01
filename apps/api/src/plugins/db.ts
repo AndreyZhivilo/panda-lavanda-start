@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import fp from 'fastify-plugin'
 
 import { createDb } from '../db/client'
+import { CategoriesRepository } from '../repositories/categories.repository'
 import { OrdersRepository } from '../repositories/orders.repository'
 import { ProductsRepository } from '../repositories/products.repository'
 import { env } from '../env'
@@ -10,13 +11,14 @@ import { env } from '../env'
  * Decorators added to the Fastify instance by {@link dbPlugin}.
  *
  * Routes access them via `fastify.productsRepository` /
- * `fastify.ordersRepository` — the concrete repositories are created once at
- * startup and shared across all requests.
+ * `fastify.ordersRepository` / `fastify.categoriesRepository` — the concrete
+ * repositories are created once at startup and shared across all requests.
  */
 declare module 'fastify' {
   interface FastifyInstance {
     productsRepository: ProductsRepository
     ordersRepository: OrdersRepository
+    categoriesRepository: CategoriesRepository
   }
 }
 
@@ -44,9 +46,11 @@ export const dbPlugin: FastifyPluginAsync = fp(
     const db = createDb(env.DATABASE_URL)
     const productsRepository = new ProductsRepository(db)
     const ordersRepository = new OrdersRepository(db)
+    const categoriesRepository = new CategoriesRepository(db)
 
     fastify.decorate('productsRepository', productsRepository)
     fastify.decorate('ordersRepository', ordersRepository)
+    fastify.decorate('categoriesRepository', categoriesRepository)
 
     // Close the postgres connection pool when Fastify shuts down.
     fastify.addHook('onClose', async () => {

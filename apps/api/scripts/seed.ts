@@ -1,6 +1,6 @@
 /**
- * Development-only seed script: wipes the `products` + `exemplars` tables and
- * fills them with realistic test data (garden plants).
+ * Development-only seed script: wipes the `categories`, `products` +
+ * `exemplars` tables and fills them with realistic test data (garden plants).
  *
  * Works directly on the Drizzle tables — it intentionally does NOT go through
  * the HTTP layer or the repository, to keep the seed fast and independent of
@@ -30,18 +30,32 @@ import { sql } from 'drizzle-orm'
 import { createInterface } from 'node:readline/promises'
 
 import { createDb } from '../src/db/client'
+import { categories } from '../src/schema/categories'
 import { exemplars, products } from '../src/schema/products'
 import { toSlug } from '../src/utils/slug'
 
 /** Default number of products to seed. */
 const DEFAULT_COUNT = 10
 
-/** Static category UUIDs (no `categories` table exists yet). */
+/**
+ * Static categories inserted into the `categories` table and referenced by
+ * products via `category_id`. The UUIDs are fixed so they stay stable across
+ * re-seeds and match the migration's seed rows (see
+ * `drizzle/0004_concerned_tarantula.sql`). `slug` is the public URL segment
+ * (`/categories/<slug>`).
+ */
 const CATEGORIES = {
   lavender: '11111111-1111-4111-8111-111111111111',
   shrubs: '22222222-2222-4222-8222-222222222222',
   perennials: '33333333-3333-4333-8333-333333333333',
 } as const
+
+/** Category rows to seed — keyed by the product template's `categoryId`. */
+const CATEGORY_ROWS = [
+  { id: CATEGORIES.lavender, name: 'Лаванда', slug: 'lavanda' },
+  { id: CATEGORIES.shrubs, name: 'Кустарники', slug: 'kustarniki' },
+  { id: CATEGORIES.perennials, name: 'Многолетники', slug: 'mnogoletniki' },
+] as const
 
 type Size = 'p9' | 'p11'
 
@@ -218,7 +232,7 @@ function printUsage(): void {
   console.log(`
 Usage: npm run seed:api -- [options]
 
-Wipes products + exemplars and fills them with test garden plants.
+Wipes categories, products + exemplars and fills them with test garden plants.
 
 Options:
   --count=N   Number of products to insert (default: ${DEFAULT_COUNT})
@@ -290,16 +304,23 @@ async function runSeed(connectionString: string, count: number): Promise<void> {
   const db = createDb(connectionString)
 
   try {
-    console.log('\n🧹 Clearing products + exemplars...')
-    // CASCADE reaches both tables; exemplars first by FK is unnecessary.
+    console.log('\n🧹 Clearing categories, products + exemplars...')
+    // CASCADE reaches the dependent tables; order in the list does not matter.
     await db.execute(
-      sql`TRUNCATE TABLE exemplars, products RESTART IDENTITY CASCADE`,
+      sql`TRUNCATE TABLE exemplars, products, categories RESTART IDENTITY CASCADE`,
     )
 
     if (count === 0) {
       console.log('✓ Tables cleared (count=0, nothing to insert).')
       return
     }
+
+    // Categories first: products reference them via the `category_id` FK, so
+    // they must exist before any product row is inserted.
+    await db
+      .insert(categories)
+      .values(CATEGORY_ROWS.map((c) => ({ id: c.id, name: c.name, slug: c.slug })))
+    console.log(`🌱 Inserted ${CATEGORY_ROWS.length} categor(y/ies).`)
 
     const toInsert = buildInsertList(count)
     console.log(`🌱 Inserting ${toInsert.length} product(s)...`)
@@ -401,7 +422,7 @@ async function main(): Promise<void> {
 
   console.log(`\n⚠️  DESTRUCTIVE OPERATION`)
   console.log(`Target database: ${maskUrl(connectionString)}`)
-  console.log(`This will DELETE all rows in products + exemplars and insert ${count} test product(s).`)
+  console.log(`This will DELETE all rows in categories, products + exemplars and insert ${count} test product(s).`)
 
   if (!yes) {
     const ok = await confirm('\nProceed? [y/N] ')
