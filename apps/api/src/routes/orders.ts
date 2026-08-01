@@ -32,6 +32,20 @@ export const ordersRoutes: FastifyPluginAsync = async (
   fastify.post('/orders', async (request, reply) => {
     const body = createOrderDataSchema.parse(request.body)
     const order = await fastify.ordersRepository.create(body)
+
+    // Secondary effect: notify the shop admin over Telegram. This is a
+    // best-effort side-effect, exactly like cart clearing in
+    // `CreateOrderUseCase` — the order is already persisted, so a Telegram
+    // outage (network error, blocked chat, rate limit) must never surface as a
+    // failed checkout. The error is routed to the crash reporter (the same sink
+    // the rest of the project uses) and tagged on the request log for context.
+    try {
+      await fastify.notifier.notifyOrderCreated(order)
+    } catch (error) {
+      request.log.error(error, 'Failed to send Telegram order notification')
+      fastify.crashReporter.report(error)
+    }
+
     return reply.code(201).send(order)
   })
 

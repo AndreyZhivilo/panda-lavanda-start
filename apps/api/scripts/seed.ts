@@ -17,6 +17,13 @@
  *   npm run seed:api -- --count=30 --yes   # explicit count + skip prompt
  *   npx tsx scripts/seed.ts                # interactive (run from apps/api/)
  *
+ * On Windows PowerShell, npm's `.cmd` shim can drop `--count=N` (and `--yes`)
+ * before they reach this script. Pass them as env vars instead:
+ *   bash/zsh:   SEED_COUNT=50 SEED_YES=1 npm run seed:api
+ *   PowerShell: $env:SEED_COUNT=50; $env:SEED_YES=1; npm run seed:api
+ * An explicit `--count=N` / `--yes` flag, when given, overrides the matching
+ * env var.
+ *
  * NOTE: `--yes` (or `-y`) is **required** when running via `npm run`, because
  * npm scripts have no interactive stdin — the confirmation prompt gets an empty
  * answer, hangs, and the script fails (`unsettled top-level await`) before
@@ -36,6 +43,20 @@ import { toSlug } from '../src/utils/slug'
 
 /** Default number of products to seed. */
 const DEFAULT_COUNT = 10
+
+/**
+ * Environment variable name that overrides `DEFAULT_COUNT`. Lets the count be
+ * passed without a `--count=N` flag — important on Windows PowerShell, where
+ * npm's `.cmd` shim silently drops arguments beginning with `--`. A `--count=N`
+ * flag, when present, still wins over this env var.
+ */
+const COUNT_ENV_VAR = 'SEED_COUNT'
+
+/**
+ * Environment variable equivalent of `--yes`. Same PowerShell rationale as
+ * `COUNT_ENV_VAR`: lets confirmation be skipped without a `--`-prefixed flag.
+ */
+const YES_ENV_VAR = 'SEED_YES'
 
 /**
  * Static categories inserted into the `categories` table and referenced by
@@ -205,8 +226,34 @@ interface CliArgs {
   yes: boolean
 }
 
+/**
+ * Resolves the seed count from the environment before CLI flags are applied.
+ * Priority: explicit `--count=N` flag > `SEED_COUNT` env var > `DEFAULT_COUNT`.
+ * The env var exists because Windows PowerShell + npm's `.cmd` shim can drop
+ * `--`-prefixed arguments before they reach this script.
+ */
+function resolveEnvCount(): number {
+  const raw = process.env[COUNT_ENV_VAR]
+  if (raw === undefined || raw === '') return DEFAULT_COUNT
+  const value = Number(raw)
+  if (!Number.isInteger(value) || value < 0) {
+    fail(`Invalid ${COUNT_ENV_VAR} value: "${raw}". Expected a non-negative integer.`)
+  }
+  return value
+}
+
+/**
+ * True when `SEED_YES` is set to a truthy value (1, true, yes —
+ * case-insensitive). Equivalent to `--yes`, for the same PowerShell reason as
+ * `resolveEnvCount`.
+ */
+function resolveEnvYes(): boolean {
+  const raw = (process.env[YES_ENV_VAR] ?? '').trim().toLowerCase()
+  return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'y'
+}
+
 function parseArgs(argv: string[]): CliArgs {
-  const args: CliArgs = { count: DEFAULT_COUNT, yes: false }
+  const args: CliArgs = { count: resolveEnvCount(), yes: resolveEnvYes() }
 
   for (const arg of argv.slice(2)) {
     if (arg === '--yes' || arg === '-y') {
@@ -238,6 +285,16 @@ Options:
   --count=N   Number of products to insert (default: ${DEFAULT_COUNT})
   --yes, -y   Skip the interactive confirmation prompt (REQUIRED via npm run)
   --help, -h  Show this help
+
+Environment:
+  ${COUNT_ENV_VAR}  Same as --count=N, but passed as an env var instead of a
+              flag. Use this on Windows PowerShell, where npm's .cmd shim can
+              drop --count=N before it reaches the script.
+  ${YES_ENV_VAR}    Same as --yes / -y, also useful on PowerShell.
+              A --count=N or --yes flag, when given, overrides the matching
+              env var.
+              PowerShell (one line):
+                $env:${COUNT_ENV_VAR}=50; $env:${YES_ENV_VAR}=1; npm run seed:api
 
 DATABASE_URL must be set (loaded from apps/api/.env automatically).
 Only runs against development databases (localhost / 127.0.0.1 / ::1 / "panda").

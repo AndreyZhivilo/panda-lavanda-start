@@ -43,6 +43,32 @@ const envSchema = z.object({
     .enum(['development', 'test', 'production'])
     .optional()
     .default('development'),
+
+  /**
+   * Telegram bot token (from @BotFather). Used by the order notifier to send
+   * admin notifications when an order is placed. Required.
+   */
+  TELEGRAM_BOT_TOKEN: z.string().min(1),
+
+  /**
+   * Numeric Telegram chat id that receives order notifications (the admin's
+   * chat — discoverable via @userinfobot). Coerced from a string env var.
+   */
+  TELEGRAM_ADMIN_CHAT_ID: z.coerce.number().int(),
+
+  /**
+   * Absolute filesystem directory where uploaded product photos are stored.
+   * Served at `PUBLIC_UPLOAD_PATH` by `@fastify/static`. Defaults to a local
+   * `uploads` folder; set explicitly in production.
+   */
+  UPLOAD_DIR: z.string().default('./uploads'),
+
+  /**
+   * Public URL path under which uploaded files are served (mounted by
+   * `@fastify/static`). The upload route returns URLs of the form
+   * `${PUBLIC_UPLOAD_PATH}/<filename>`.
+   */
+  PUBLIC_UPLOAD_PATH: z.string().default('/uploads'),
 })
 
 /**
